@@ -677,7 +677,7 @@ permission bit and the interpreter line are right, and that the two files agree.
 | Not a gate | A gate |
 |---|---|
 | `{pm} build`  `# expect: exit 0` | `{pm} build && ./dist/cli.js --version`  `# expect: exit 0, prints the version` |
-| "the package is publishable" | `b=$(mktemp -d) && i=$(mktemp -d) && npm pack --pack-destination "$b" && npm i --prefix "$i" "$b/<tarball>" && "$i/node_modules/.bin/<bin>" --help`  `# expect: exit 0 — two temp dirs outside the repo (build, install) so undeclared deps cannot resolve from the repo's node_modules, as in cli-library-mcp.md; never -g; no rm -rf on a variable path — the OS reaps the temp dirs` |
+| "the package is publishable" | `b=$(mktemp -d) && i=$(mktemp -d) && npm pack --pack-destination "$b" && npm i --prefix "$i" "$b"/*.tgz && npm --prefix "$i" exec --no -- <bin> --help`  `# expect: exit 0 — two fresh temp dirs outside the repo (build, install) so undeclared deps cannot resolve from the repo's node_modules, as in cli-library-mcp.md; the *.tgz glob matches the one file npm named, never a hand-typed tarball name (#21); never -g; the OS reaps the temp dirs. §19.3 allows Bash(mktemp -d), Bash(npm pack --pack-destination:*), Bash(npm i --prefix:*) and Bash(npm --prefix:*)` |
 | "the server builds" | `curl -sf localhost:3000/health`  `# expect: exit 0, body {"ok":true}` |
 | "the image builds" | `docker run --rm <image> --version`  `# expect: exit 0` |
 
