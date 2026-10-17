@@ -4,7 +4,7 @@
 > framework that already ships auth, migrations, background jobs, mail, admin and deploy —
 > and you would rather write features than assemble twelve npm packages.
 
-**Last verified: 2026-07-27** — every version below was checked against RubyGems and Packagist on
+**Last verified: 2026-10-17** — every version below was checked against RubyGems and Packagist on
 this date. When refreshing this file, re-verify and update this line.
 
 This file covers **two independent sub-tracks**. Pick one; never mix them in a project.
@@ -49,26 +49,26 @@ generator commands rather than trusting recall.
 
 | Layer | Choice | Version | Notes |
 |---|---|---|---|
-| Language | Ruby | **4.0.6** | Current stable. Rails 8.1 declares `required_ruby_version >= 3.2.0`; if a dependency is not Ruby 4-ready, pin **3.4.10** — both are supported |
-| Framework | Rails | **8.1.3** | Latest stable. No 8.2/9.0 prerelease exists as of this date |
+| Language | Ruby | **4.0.7** | Current stable. Rails 8.1 declares `required_ruby_version >= 3.2.0`; if a dependency is not Ruby 4-ready, pin **3.4.11** — both are supported |
+| Framework | Rails | **8.1.4** | Latest stable. No 8.2/9.0 prerelease exists as of this date. 8.1 left bug-fix support on 2026-10-10; security fixes continue to 2027-10-10 |
 | Server | Puma | **8.0.2** | Default |
-| HTTP proxy / TLS | Thruster | **0.1.23** | Ships in the Rails 8 Dockerfile; handles TLS, gzip, X-Sendfile |
+| HTTP proxy / TLS | Thruster | **0.1.27** | Ships in the Rails 8 Dockerfile; handles TLS, gzip, X-Sendfile |
 | Assets | Propshaft | **1.3.2** | Default in Rails 8. Sprockets is legacy — do not reach for it |
 | JS delivery | importmap-rails | **2.2.3** | No bundler, no `node_modules`. Only add jsbundling if a dependency truly requires npm |
 | Frontend | Turbo (turbo-rails) | **2.0.23** | Drives page nav, frames, and streams |
 | Frontend | Stimulus (stimulus-rails) | **1.3.4** | Sprinkles of JS behaviour, ~30 lines per controller |
-| Jobs | Solid Queue | **1.5.0** | Database-backed. Default in Rails 8 — no Redis needed |
+| Jobs | Solid Queue | **1.7.0** | Database-backed. Default in Rails 8 — no Redis needed |
 | Cache | Solid Cache | **1.0.10** | Database-backed cache store |
-| WebSockets | Solid Cable | **4.0.2** | Action Cable over the database |
-| Job UI | mission_control-jobs | **1.1.0** | Mount at `/jobs`, behind admin auth |
-| Components | ViewComponent | **4.12.0** | Optional. Add once partials start taking arguments |
-| DB driver | pg | **1.6.3** | PostgreSQL for anything multi-user |
+| WebSockets | Solid Cable | **4.1.0** | Action Cable over the database. Requires Ruby ≥3.3 |
+| Job UI | mission_control-jobs | **1.3.1** | Mount at `/jobs`, behind admin auth |
+| Components | ViewComponent | **4.16.0** | Optional. Add once partials start taking arguments |
+| DB driver | pg | **1.7.0** | PostgreSQL for anything multi-user |
 | Auth | Devise | **5.0.4** | Only when you need OmniAuth/confirmable/lockable — otherwise use `rails g authentication` |
 | Deploy | Kamal | **2.12.0** | Docker to your own servers |
 | Tests | RSpec (rspec-rails) | **8.0.4** | Or built-in Minitest — see below |
 | Lint | rubocop-rails-omakase | **1.1.0** | Rails' own opinionated config. Ships in new apps |
-| Security | Brakeman | **8.0.5** | Static analysis, wired into `bin/ci` |
-| Jobs (alt) | Sidekiq | **8.1.6** | Only when you already run Redis and need its throughput |
+| Security | Brakeman | **8.1.0** | Static analysis, wired into `bin/ci` |
+| Jobs (alt) | Sidekiq | **8.1.7** | Only when you already run Redis and need its throughput |
 
 ### Setup
 
@@ -171,24 +171,24 @@ domain needs heavy shared-context setup. Never run both.
 
 | Layer | Choice | Version | Notes |
 |---|---|---|---|
-| Language | PHP | **8.5.8** | Current stable. Laravel 13 requires `^8.3` |
-| Framework | laravel/framework | **13.23.0** | Latest stable major |
-| Installer | laravel/installer | **5.31.0** | `laravel new` — drives the starter-kit prompts |
-| Interactivity | Livewire | **4.3.3** | Server-driven components. The default choice |
-| Admin panel | Filament | **5.7.3** | Requires PHP `^8.2`, Livewire `^4.1`, Illuminate `^11.28 \|\| ^12 \|\| ^13` |
-| SPA bridge | inertiajs/inertia-laravel | **3.1.1** | Only when the UI genuinely needs React/Vue |
-| Tests | Pest | **4.7.5** | Requires PHP `^8.3`. Ships with the starter kits |
+| Language | PHP | **8.5.11** | Current stable. Laravel 13 requires `^8.3`; Pest 5 requires `^8.4` |
+| Framework | laravel/framework | **13.37.0** | Latest stable major |
+| Installer | laravel/installer | **5.32.0** | `laravel new` — drives the starter-kit prompts |
+| Interactivity | Livewire | **4.4.7** | Server-driven components. The default choice |
+| Admin panel | Filament | **5.10.2** | Requires PHP `^8.2`, Livewire `^4.4.7`, Illuminate `^11.28 \|\| ^12.0 \|\| ^13.0` (declared in `filament/support`) |
+| SPA bridge | inertiajs/inertia-laravel | **3.5.1** | Only when the UI genuinely needs React/Vue |
+| Tests | Pest | **5.3.2** | Requires PHP `^8.4` and PHPUnit 13. `laravel new --pest` installs it unconstrained — on PHP 8.3 Composer silently resolves Pest 4 instead |
 | API auth | Sanctum | **4.3.3** | Tokens + SPA cookie auth |
-| Auth scaffolding | Fortify | **1.37.3** | Headless auth backend behind the starter kits |
-| Queues UI | Horizon | **5.48.1** | Redis queues only. Skip it if you run the database driver |
-| Lint / format | Pint | **1.29.3** | Laravel's opinionated PHP-CS-Fixer preset |
-| Static analysis | Larastan | **3.10.0** | PHPStan for Laravel. Start at level 5 |
-| Billing | Cashier | **16.6.0** | Stripe subscriptions — see `knowledge/capabilities/payments-rails.md` |
-| Search | Scout | **11.4.0** | Driver-based full-text search |
+| Auth scaffolding | Fortify | **1.41.0** | Headless auth backend behind the starter kits |
+| Queues UI | Horizon | **5.50.1** | Redis queues only. Skip it if you run the database driver |
+| Lint / format | Pint | **1.32.1** | Laravel's opinionated PHP-CS-Fixer preset |
+| Static analysis | Larastan | **3.13.0** | PHPStan for Laravel. Start at level 5 |
+| Billing | Cashier | **16.9.0** | Stripe subscriptions — see `knowledge/capabilities/payments-rails.md` |
+| Search | Scout | **11.9.0** | Driver-based full-text search |
 | Permissions | spatie/laravel-permission | **8.3.0** | Roles + permissions. Filament integrates with it |
-| WebSockets | Reverb | **1.11.0** | First-party WebSocket server |
-| Debug/APM | Telescope | **5.21.0** | Local only. Never expose in production |
-| Agent tooling | laravel/boost | **2.4.13** | MCP server + docs for AI coding agents — worth installing when Claude Code builds the app |
+| WebSockets | Reverb | **1.12.0** | First-party WebSocket server |
+| Debug/APM | Telescope | **5.26.0** | Local only. Never expose in production |
+| Agent tooling | laravel/boost | **2.10.3** | MCP server + docs for AI coding agents — worth installing when Claude Code builds the app |
 
 ### Setup
 
@@ -259,7 +259,7 @@ runs on top of it, so migration is incremental rather than a rewrite.
 |---|---|
 | **Laravel Cloud** | Default recommendation. First-party managed hosting; database, queues and workers configured for you |
 | **Laravel Forge** | You want your own VPS (Hetzner/DigitalOcean) with provisioning handled. Cheapest at scale |
-| **Laravel Vapor** (`laravel/vapor-core` **2.44.0**) | Serverless on AWS Lambda. Only for genuinely spiky traffic — it complicates filesystem, queues and long requests |
+| **Laravel Vapor** (`laravel/vapor-core` **2.47.0**) | Serverless on AWS Lambda. Only for genuinely spiky traffic — it complicates filesystem, queues and long requests |
 | Plain Docker / Kamal | You already run infrastructure and want parity with a Rails shop |
 
 Always run `php artisan config:cache route:cache view:cache` at deploy, and a **separate queue worker
@@ -270,7 +270,7 @@ unprocessed jobs — same failure as Rails without `bin/jobs`.
 
 - **Breeze and Jetstream are the old world.** Current Laravel scaffolds via `laravel new` starter kits
   (Livewire / React / Vue). Any instruction to `composer require laravel/breeze` is out of date.
-- **Filament 5 requires Livewire 4.** Do not pin Livewire 3 alongside Filament 5; the conflict surfaces
+- **Filament 5 requires Livewire `^4.4.7`.** Do not pin Livewire 3 (or an older 4.x) alongside Filament 5; the conflict surfaces
   as cryptic Alpine errors at runtime, not at install time.
 - **Livewire re-renders on every action.** Anything expensive in `render()` runs on every keystroke of
   a `wire:model.live` field. Use `wire:model.blur` by default and `#[Computed]` for derived data.
