@@ -3,7 +3,7 @@
 > Getting the thing off your laptop and keeping it there — host choice, pipeline, secrets, preview
 > environments, rollback, domains, and the background work a request/response host cannot run.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## When a project needs this
 
@@ -169,7 +169,7 @@ sends mail, or your transactional email lands in spam and you will blame the wro
 |---|---|
 | `jobs` | Job type, payload, status, attempt count, `run_after`, last error — even with a hosted job runner, a local row is what your UI queries |
 | `job_dead_letters` | Payload and error of runs that exhausted retries, plus a replay marker |
-| `idempotency_keys` | Key, scope, request fingerprint, stored response, expiry — so a retried enqueue does not double-execute |
+| `idempotency_keys` | Columns owned by `knowledge/capabilities/api-design.md` (`endpoint` is the scope) — so a retried enqueue does not double-execute |
 | `deploys` (Tier 2) | Revision SHA, actor, environment, started/finished, outcome — the audit answer to "what changed" |
 
 ## Build steps this adds

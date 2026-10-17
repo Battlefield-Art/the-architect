@@ -13,6 +13,243 @@ Nothing yet.
 
 ---
 
+## [2.6.0] — 2026-10-17
+
+A full-repo correctness pass, read area by area by parallel reviewers, every fix re-checked by
+independent code, fact and security reviews that tried to refute it. Every runtime-track pin was
+re-verified live. No declared path, command, section number or `tasks.json` field changed.
+
+### Added
+
+- **Validator findings #38–#40 (BLOCKER) with Sweeps 28–30.** Three writer rules claimed validator
+  enforcement that did not exist: the §19.6 resolution-convention matrix (#38), a runtime check of
+  something erased at runtime (#39), and a step drawing its contract from a `NOT APPLICABLE` section
+  (#40). `blueprint-validator` now has 40 findings and Sweeps 0–30.
+- **Four CI checks.** Every scanned path exists; manifest versions agree and the CHANGELOG carries the
+  release (heading and link); shape "No if" edges are reciprocal and every capability sits in some
+  shape's Core table; every version-scan pattern compiles **and** matches a positive canary while
+  known-clean strings stay clean.
+- **Registry rows** for `claude-api` and `/abogado-del-diablo` — both were referenced and neither was
+  listed — and the missing second install line for `/last30days`.
+- **Agent frontmatter for current Claude Code.** `blueprint-validator` runs on `opus` at
+  `effort: high`; the validator and `stack-researcher` set `omitClaudeMd: true` so a user's
+  CLAUDE.md cannot colour an independent audit; `blueprint-writer` gains `Edit` for fix loops.
+- GitHub social preview card (`assets/social-preview.jpg`) and the image check (resolves, used,
+  alt text) — landed after 2.5.0.
+
+### Changed
+
+- **Expected-failure gates use the strict form** `status=0; cmd || status=$?; test "$status" -eq N`.
+  The previous recommendation, `cmd; test $? -eq N`, aborts under `set -e` before `test` runs, and a
+  mid-block `! cmd` fails silently under `set -e`. Finding #36 now files both. Strict gates need a
+  `Bash(test:*)` allow entry, which the §19.3 skeleton carries. **Bundles from 2.5.0 that use the
+  old forms will draw #36 from `/architect-audit`.**
+- **Claude Code renamed the Task tool to Agent.** Dispatch text and `allowed-tools` say Agent, and the
+  plugin-namespaced subagent types (`the-architect:*`) are named.
+- **The emission mode is derived and announced everywhere**, never asked — seven passages still
+  described a question Phase 4 forbids.
+- **MCP:** the current revision (2026-07-28) is stateless with `server/discover`; blueprints build
+  dual-era for hosts that still send `initialize`, and the gates prove both.
+- **Claude API guidance** matches today's platform: non-default sampling parameters are rejected,
+  cache prefixes run tools → system → messages, refusals are HTTP 200 with `stop_reason: "refusal"`,
+  forced tool choice is rejected on some models, thinking blocks are replayed unmodified. Model IDs
+  and prices still defer to the `claude-api` skill.
+- **Runtime tracks re-verified 2026-10-17**, all five. New majors landed for pnpm, Vitest, Stripe, the
+  Expo SDK and React Native, the Python `anthropic` and `openai` SDKs (now on `httpx2`), Go, Echo,
+  Bubble Tea and Pest — the numbers live in `knowledge/runtime-tracks/`, as always.
+- **Table names are plural everywhere**, with `auth.md` owning users, organizations, memberships,
+  invitations and API keys, and `audit_events` as the audit table.
+- The worked Step 7 example (template and README) now obeys the template's own caps and gates on
+  replayed fixtures; live `stripe trigger` runs moved to the launch checklist.
+- Settings guidance: one allow entry per subcommand of a compound command, never a bare
+  interpreter or package runner, and deny rules are not a sandbox.
+- CI: `actions/checkout@v7` without persisted credentials, a job timeout, and a manifest check that
+  fails instead of skipping when the CLI cannot be fetched.
+
+### Fixed
+
+- **Phase 4 asked before overwriting an existing blueprint only after the writer had already
+  saved over it.** The check now runs in Step 3, before anything is written.
+- `ts-node`: better-auth 1.7 keys accounts on `(providerId, accountId)` — an `issuer` column
+  existed only in 1.7.0–1.7.2. Prisma is pinned exactly because npm `latest` is an RC;
+  `@vitejs/plugin-react-oxc` is gone (deprecated, rejects the current Vite major).
+- `go`: `go mod init` writes the full toolchain version; the documented "previous minor" default was
+  reverted in a patch release. `mobile-native`: the Node-floor claim named the wrong React Native release, and
+  gesture-handler 3 is now the SDK pin.
+- Apple's US-storefront external-purchase exception; guideline 4.8 stated accurately; Auth.js is
+  maintained by the Better Auth team and new projects start on Better Auth.
+- `availability-engine` and `realtime-voice` were unreachable (in no shape's Core table).
+- Build steps that needed a live IdP, production, or a human now run against stubs or move to the
+  launch checklist; manual-check escape hatches in `verify` are gone.
+- CHANGELOG entries for 2.0.1 through 2.5.0, which shipped without them.
+
+### Security
+
+- The agent-loop replay copy, kept unredacted so thinking blocks replay intact, is encrypted at rest,
+  decryptable only by the loop worker, and purged when the run can no longer resume.
+- `/architect-audit` no longer pre-approves Bash and disallows Write/Edit, matching its read-only
+  claim.
+- The pack smoke test installs into temp directories outside the repo, never globally.
+
+---
+
+## [2.5.0] — 2026-07-28
+
+Seventh build cycle under the strict-literal protocol: 13/13 steps, **zero deviations**, §20.1 gate
+passed, working product tested from the installed package.
+
+### Added
+
+- **Rule P — expected output is reconciled twice.** Any byte-exact golden file or expected-output
+  example must agree with the blueprint's own data model, and must not quote a message only the
+  pinned runtime could produce. Writer obligation plus validator finding #35 / Sweep 25.
+- **Rule Q — a gate must fail for the right reason.** A gate whose pass condition is "any non-zero
+  exit" is satisfied by a usage error, so a gate must distinguish the expected failure code from a
+  usage error (`cmd; test $? -eq N` in this release's examples). Finding #36 / Sweep 26.
+- **Rule R — the ignore file precedes the command it governs.** An ignore file or governing config
+  written after the command it changes is a finding (BLOCKER when the effect, such as git tracking,
+  is irreversible). Finding #37 / Sweep 27.
+- `knowledge/shapes/cli-library-mcp.md`: declaring the public surface (step 2) is now separated from
+  freezing it (a drift-check gate, only once the modules exist).
+
+### Changed
+
+- `blueprint-validator`: 37 findings, Sweeps 0–27.
+
+---
+
+## [2.4.0] — 2026-07-28
+
+Fifth build cycle, strict-literal protocol: 14/14 steps, 0 blocked, §20.1 gate passed. Rules K–N
+verified live.
+
+### Added
+
+- **Rule O — a Verify may not depend on what its own Checkpoint produces.** Steps run
+  `Do → Done when → Verify → Checkpoint`, so a Verify that asserts a clean tree, a tracked file, or
+  its own tag can never pass. Move the assertion into the Checkpoint, or restate it without commit
+  state. Validator finding #34 / Sweep 24; the same assertion inside §20.1 or a Checkpoint block is
+  exempt.
+- Phase 4 Step 6, run 5: plain filesystem I/O is named as a clean pass for the data-layer smoke test.
+
+### Changed
+
+- The task-splitting threshold is one number everywhere: 5 files or 6 acceptance criteria.
+- `blueprint-validator`: 34 findings, Sweeps 0–24.
+
+### Fixed
+
+- Phase 4 Step 6: run 3's "step 1 only" scope no longer contradicts run 5, which expects the
+  intervening steps.
+
+---
+
+## [2.3.0] — 2026-07-28
+
+Fourth build cycle, with the builder held strictly literal for the first time: 7/14 steps, one
+blocking defect — two blueprint-emitted files disagreed about where the executable lands.
+
+### Added
+
+- **Rule K — emitted artifacts form a system.** Any value stated in two artifacts (path, entry
+  point, name, port) must be cross-checked. Validator finding #30 / Sweep 20.
+- **Rule L — fail fast.** The first step that produces an executable must run it, not only build it.
+  Finding #31 / Sweep 21.
+- **Rule M — a bundle inside the project is part of the tool surface.** Every emitted config must
+  exclude the bundle path. Finding #32 / Sweep 22.
+- **Rule N — a guard must not itself fail.** A guard must exit 0 on the path it guards against (the
+  no-clobber copy behaved differently on BSD and GNU). Finding #33 / Sweep 23.
+- **`checkpoint` field in `tasks.json`** (required) and a Checkpoint line in the epic task block, so a
+  bundle-mode builder that resumes from `tasks.json` sees the rollback tag.
+
+### Changed
+
+- **Phase 4 Step 6 smoke test grew from 3 runs to 7:** place the bundle in the tree, run bootstrap
+  twice (both exit 0), implement step 1 from the blueprint's own content and gate it, run what the
+  build produces, exercise the data layer, run the formatter.
+- Writer rules now name the validator finding that enforces each one.
+- `blueprint-validator`: 33 findings, Sweeps 0–23. Bundles generated by 2.2.0 or earlier have no
+  `checkpoint` field and will draw findings from `/architect-audit`; `/architect-next` does not read
+  the field and still resumes them.
+
+### Fixed
+
+- Step 6 run 2 was unsatisfiable as written: it asked for step 1's Verify after a bootstrap that
+  never does step 1's work.
+
+---
+
+## [2.2.0] — 2026-07-27
+
+Third build cycle: 14/14 steps and a working product, but a literal builder stopped at step 3. One
+root cause — how a plain script invocation reaches TypeScript source — produced both hard stops.
+
+### Added
+
+- **Rule F — one resolution convention, every loader.** Decided once and reconciled against the app,
+  tests, scripts and build.
+- **Rule G — a Verify exits 0 when the step is correct.** A documented error path is wrapped so the
+  line itself exits 0.
+- **Rule H — a check must be possible in the medium it runs in** (no runtime check for type-only
+  exports).
+- **Rule I — the workspace copy must be safe to re-run.**
+- **Rule J — a NOT APPLICABLE section cannot carry a contract.**
+- `knowledge/runtime-tracks/ts-node.md`: the import-specifier and compiler-option table that settles
+  TypeScript source resolution across all four execution contexts.
+
+### Changed
+
+- `cli-library-mcp` no longer hard-requires a container; the pack-and-install path is documented.
+- Phase 4 Step 6: a data layer that needs no service is a clean pass, not a blocked run; the
+  formatter now runs over `workspace/`.
+- Who authors the package manifest is decided by the blueprint, not left to the writer.
+- `SKILL.md` rule 6: the obligation is the live registry check; dispatching `stack-researcher` is the
+  means. A missing Task tool no longer blocks generation.
+- Validator Sweep 12 is split: the static half stays in the validator, the executable half is handed
+  by name to the main thread's smoke test.
+
+---
+
+## [2.1.0] — 2026-07-27
+
+Hardening from two zero-context generate-then-build tests, both of which falsified the
+self-containment promise. The defect class: the generator specified that a file exists, never that
+its content works.
+
+### Added
+
+- **Rules A–E**, each a writer obligation and a validator finding: (A) an emitted config loads every
+  module the gates import; (B) every tool that reads env vars is given a way to load them; (C) never
+  assert a count you did not make; (D) bootstrap creates what the checkpoints need (`git init`);
+  (E) a file the blueprint calls committed is not gitignored.
+- Phase 4 smoke test reaches the data layer: bootstrap, step 1's Verify, and the first Verify that
+  touches the database. A blocked run must say so instead of skipping.
+- Subagent fallback: Phase 4 degrades gracefully when the Task tool is unavailable.
+- README: "Pick your path: quick or full" and the Phase 4 duration estimate (EN and ES).
+- CI: retired-v1-constructs denylist over the runtime instruction surface.
+
+### Changed
+
+- **The bundle-vs-single-file choice is derived from the step count and announced, not asked** —
+  12 or more steps gets a bundle, 11 or fewer a single file. An explicit user preference still wins.
+- Acceptance-criterion identity between `tasks.json` and epics is compared after stripping emphasis.
+- `blueprint-validator`: 29 findings, Sweeps 0–19, applying in both emission modes.
+- CI: the pin guard scans the whole repo except `knowledge/runtime-tracks/` and catches image tags
+  and comparator ranges; the mode-parity check compares full rule bodies and per-rule path tokens.
+
+---
+
+## [2.0.1] — 2026-07-27
+
+### Fixed
+
+- **The plugin could not be installed from the marketplace.** Both manifests failed
+  `claude plugin validate`: `marketplace.json` `plugins[0].author` is now an object, `plugin.json`
+  `repository` is now a string URL, and the unrecognized `engines`, `metadata.homepage` and
+  `metadata.website` fields are gone.
+
+---
+
 ## [2.0.0] — 2026-07-27
 
 The Architect ships as a Claude Code plugin, the knowledge base is split on three axes so it stops
@@ -240,6 +477,13 @@ First public release.
 - Corrected the `pdf` skill's description — it does extraction, manipulation, and forms, not visual
   design.
 
-[Unreleased]: https://github.com/Hainrixz/the-architect/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Hainrixz/the-architect/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/Hainrixz/the-architect/compare/v2.5.0...v2.6.0
+[2.5.0]: https://github.com/Hainrixz/the-architect/compare/v2.4.0...v2.5.0
+[2.4.0]: https://github.com/Hainrixz/the-architect/compare/v2.3.0...v2.4.0
+[2.3.0]: https://github.com/Hainrixz/the-architect/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/Hainrixz/the-architect/compare/v2.1.0...v2.2.0
+[2.1.0]: https://github.com/Hainrixz/the-architect/compare/v2.0.1...v2.1.0
+[2.0.1]: https://github.com/Hainrixz/the-architect/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Hainrixz/the-architect/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/Hainrixz/the-architect/releases/tag/v1.0.0

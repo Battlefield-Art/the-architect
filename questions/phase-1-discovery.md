@@ -4,7 +4,7 @@ Goal of this phase: decide **which of the 14 shapes** the project is, and whethe
 or a change to something that already exists. Nothing else. Stack, hosting, and libraries are Phase 2
 and Phase 3 — do not drift into them here.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ---
 
@@ -105,8 +105,9 @@ confirm with Q2 before committing.
 | "landing page", "waitlist", "launch page", "convert visitors", "we need a site" | `marketing-site` |
 | "iOS", "Android", "App Store", "push notifications", "offline on the phone" | `mobile-app` |
 | "endpoints", "our frontend team will consume it", "microservice", "webhook receiver", "public API" | `api-backend` |
+| "appointments", "booking", "calendar slots", "clients book a time" | `saas-webapp` + the `knowledge/capabilities/availability-engine.md` capability |
 | "admin panel", "our ops team", "internal", "replace a spreadsheet", "back office" | `internal-tool` |
-| "blog", "docs site with users", "forum", "creators post", "comments", "profiles", "feed" | `content-community-platform` |
+| "blog with comments/members", "docs site with users", "forum", "creators post", "comments", "profiles", "feed" | `content-community-platform` |
 | "chatbot", "agent", "it uses tools", "answers questions about our docs", "copilot for X" | `agent-app` |
 | "generates images", "makes videos", "voiceover", "credits", "renders", "it takes a minute" | `generative-media-app` |
 | "cart", "checkout", "SKUs", "inventory", "shipping", "we sell physical products" | `ecommerce-storefront` |
@@ -307,7 +308,7 @@ If the user says "just build it", "skip the questions", or invokes the quick com
 
 Then classify from the Signals table, pick smart defaults for everything else, state the shape and
 the two biggest assumptions you made, and go. Do not run Disambiguation — if it is ambiguous, pick
-the more capable shape and say which alternative you rejected.
+the closer one, and name the rejected alternative.
 
 ---
 

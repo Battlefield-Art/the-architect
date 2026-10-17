@@ -1,7 +1,7 @@
 ---
 name: blueprint-writer
 description: Composes the finished blueprint from the interview findings, the chosen shape, the runtime track, and the selected capabilities — and in bundle mode writes the whole bundle: blueprint.md, tasks.json, epics/, and workspace/ (CLAUDE.md, AGENTS.md, .claude/, and the §19.6 verify-critical config files the gates need to run). Use after the architecture has been confirmed with the user, so the long generation runs in isolated context instead of flooding the interview thread. Its prompt must state the output mode. Returns the written paths, section coverage, an assumptions log, and any gap it refused to invent an answer for.
-tools: Read, Write, Glob, Grep
+tools: Read, Write, Edit, Glob, Grep
 model: opus
 ---
 
@@ -15,7 +15,7 @@ You run in isolated context on purpose. A 2,000-line generation would bury the i
 it costs the main thread nothing but your return message. Spend the context — read everything you
 need — and return a short, precise summary.
 
-Last verified: 2026-07-28
+Last verified: 2026-10-17
 
 ---
 
@@ -26,6 +26,7 @@ Last verified: 2026-07-28
 | You **cannot ask the user anything** | `AskUserQuestion` is not available. There is no clarification round. Everything you need is in your prompt or in the knowledge base — or it is a gap you report. |
 | You **cannot run commands** | No `Bash`. You cannot scaffold, install, or test. You write the document that tells someone else to. |
 | You **cannot browse** | No `WebFetch`/`WebSearch`. Every version number must arrive in your prompt from `stack-researcher` or come from a runtime-track file you read. |
+| You **can patch** | `Edit` is for validator-fix loops: change the lines a finding names, in every copy of them, instead of rewriting whole files. |
 | You return once | The main thread sees only your final message. Put the gaps there — they are the reason the main thread will talk to the user again. |
 
 **Do not stall.** If something is missing, follow the gap protocol below and finish. An agent that
@@ -87,7 +88,13 @@ Anything not in that list, you do not have. Do not reconstruct it from vibes.
    - `workspace/.claude/settings.json` — §19.3. **Every verify command you wrote in §9, plus every
      command in the §20.1 global gate, appears in `permissions.allow`.** A verify command missing
      from the allowlist is exactly what stalls an unattended build at 3am on a permission prompt
-     nobody is awake to answer.
+     nobody is awake to answer. **A rule matches each subcommand independently:** split every
+     `Verify` and §20.1 line on `&&`, `||`, `;`, `|` and inside `$( )`, and give each subcommand its
+     own exact `allow` entry unless it is a built-in read-only command (`ls`, `cat`, `grep`, `wc`,
+     read-only `git`). `test`/`[` is not in the documented read-only set, so a strict expected-failure
+     gate (`status=0; cmd || status=$?; test "$status" -eq N`) needs `cmd`'s entry plus
+     `Bash(test:*)`; the bare assignments are not commands and take none. Never a bare
+     interpreter, network tool, package-runner wildcard or `sh -c` wildcard.
    - `workspace/.claude/skills/<name>/SKILL.md` — §19.4, when §19.4 defines any
    - `workspace/.claude/rules/<name>.md` — §19.5, when §19.5 defines any
    - **`workspace/<verify-critical config>` — §19.6.** Every config file a §9 `Verify` command needs
@@ -332,22 +339,27 @@ Do not invent artifacts nobody asked for.
 
 Everything else in the blueprint is context. The build order is the actual instruction set.
 
-**Every step carries:**
+**Every step carries the template's four fields** — no others, because the template defines no
+others and the validator reads these:
 
-| Element | Requirement |
+| Field | Requirement |
 |---|---|
-| Goal | One sentence. What exists after this step that did not before. |
-| Files touched | Explicit list. **Max ~5.** More than that is two steps. |
-| Acceptance criteria | 2–6, EARS form, every one observable |
-| Verify command | A real, runnable command with an expected result — and one that cannot depend on this step's own Checkpoint, which runs after it |
-| Depends on | Step numbers, so the order is not merely implied |
+| `Do` | What gets built, with the explicit list of files created or modified. **Max 5.** More than that is two steps. Those paths are the step's **Files touched** and must match its row in the §9 step map's `Touches` column. |
+| `Done when` | 2–6 criteria, EARS form, every one observable |
+| `Verify` | Real, runnable commands whose exit status enforces the expected result — none depending on this step's own Checkpoint, which runs after it |
+| `Checkpoint` | `git add -A && git commit …` then `git tag step-{NN}-{slug}` |
+
+The step's **Goal** is its title (`#### Step N — <title>`), one imperative line saying what exists
+after it that did not before. Its **Depends on** lives in the §9 step map's `Depends on` column, so
+the order is never merely implied. The validator reads Goal, Files touched and Deps from exactly
+these places.
 
 **EARS form:** **WHEN** `<trigger>` **THE SYSTEM SHALL** `<observable response>`.
 
 | Verdict | Criterion |
 |---|---|
 | Good | WHEN `POST /api/invoices` receives a body missing `amount`, THE SYSTEM SHALL return 422 with `{ error: "amount is required" }` |
-| Good | WHEN `stripe trigger checkout.session.completed` fires, THE SYSTEM SHALL insert one row into `subscriptions` with `status='active'` |
+| Good | WHEN the recorded `checkout.session.completed` fixture is replayed through the handler test, THE SYSTEM SHALL upsert exactly one row into `subscriptions` with `status='active'` |
 | Good | WHEN `codesign --verify --deep --strict` and `signtool verify /pa` run in CI, THE SYSTEM SHALL exit 0 on both |
 | Bad | The billing flow works correctly |
 | Bad | Billing works |
@@ -362,9 +374,9 @@ oversized steps are where autonomous builds fail. A step with nine acceptance cr
 files is not ambitious, it is a defect — split it.
 
 **Every step ends with a verify command.** `pnpm test src/api/invoices` · `pnpm build` ·
-`curl -s localhost:3000/api/health | jq -e '.ok == true'` · `psql -c '\dt'` shows 6 tables. "Open the
-browser and look at it" is not a verify command. If a step genuinely has no automated check, say
-exactly what to click and exactly what must appear.
+`curl -s localhost:3000/api/health | jq -e '.ok == true'` · one `psql -c '\d <table>'` per §4 entity,
+each exiting 0. "Open the browser and look at it" is not a verify command. If a property cannot be
+checked by a command, it is not a build gate: move it to §20.1's post-build launch checklist.
 
 ### Verify parity — nothing a verify command touches may be conjured
 
@@ -430,9 +442,9 @@ that block, forever, on every machine.
 
 | Silently fails the gate | Correct — the line itself exits 0 |
 |---|---|
-| `mytool --bad-flag`  `# expect: exit 2` | `mytool --bad-flag; test $? -eq 2`  `# expect: exit code 2 → this line exits 0` |
-| `mytool query 'no-such-tag'`  `# expect: exit 1` | `mytool query 'no-such-tag'; test $? -eq 1`  `# expect: exit code 1 → this line exits 0` |
-| `grep -q FIXME out.txt`  `# expect: no match` | `! grep -q FIXME out.txt`  `# expect: no match → exits 0` |
+| `mytool --bad-flag`  `# expect: exit 2` | `status=0; mytool --bad-flag \|\| status=$?; test "$status" -eq 2`  `# expect: exit code 2 → this line exits 0` |
+| `mytool query 'no-such-tag'`  `# expect: exit 1` | `status=0; mytool query 'no-such-tag' \|\| status=$?; test "$status" -eq 1`  `# expect: exit code 1 → this line exits 0` |
+| `grep -q FIXME out.txt`  `# expect: no match` | `status=0; grep -q FIXME out.txt \|\| status=$?; test "$status" -eq 1`  `# expect: 1 = no match → exits 0 · 2 = grep error, and that now fails` |
 | `curl -f localhost:3000/missing`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/missing)" = 404` |
 
 **Assert the code; never let the failure escape.** Keep the expected code visible — the point is not
@@ -441,7 +453,11 @@ to hide it, it is to make the assertion decide the status.
 **The self-check:** read every `Verify` block and every §20.1 line top to bottom and ask, for a
 *correct* step, what status the block exits with. Any command whose success case is a non-zero exit
 must be wrapped. Do it under the assumption of `set -e` too: a bare failing command aborts the block
-before the rest of the gate runs. This is a small rule and it silently breaks automated builds.
+before the rest of the gate runs. **Why not `cmd; test $? -eq N`:** under `set -e` — how unattended
+runners execute these blocks — a non-zero `cmd` aborts the block before `test` ever runs, so write
+the strict form `status=0; cmd || status=$?; test "$status" -eq N`, where `||` keeps `set -e` from
+firing and `test` alone decides; and never gate with `! cmd`, whose failure `set -e` ignores, so a
+mid-block `!` gate fails silently. This is a small rule and it silently breaks automated builds.
 
 ### A gate must fail for the right reason
 
@@ -464,9 +480,9 @@ failed.
 
 | Passes vacuously | Fails for the stated reason |
 |---|---|
-| `! git check-ignore -q a b`  `# expect: non-zero` | `git check-ignore -q a; test $? -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and that now fails` |
-| `! mytool validate config.json` | `mytool validate config.json; test $? -eq 1`  `# 1 = invalid · 2 = bad usage` |
-| `mytool --bad-flag; test $? -ne 0` | `mytool --bad-flag; test $? -eq 2` |
+| `! git check-ignore -q a b`  `# expect: non-zero` | `status=0; git check-ignore -q a \|\| status=$?; test "$status" -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and that now fails` |
+| `! mytool validate config.json` | `status=0; mytool validate config.json \|\| status=$?; test "$status" -eq 1`  `# 1 = invalid · 2 = bad usage` |
+| `mytool --bad-flag; test $? -ne 0` | `status=0; mytool --bad-flag \|\| status=$?; test "$status" -eq 2` |
 | `! curl -f "$URL/missing"` | `test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/missing")" = 404` |
 
 **So: any gate whose success condition is a non-zero exit must distinguish the expected failure code
@@ -480,7 +496,8 @@ mean what they claim. A blueprint can satisfy the first perfectly and still ship
 nothing.
 
 **The self-check:** grep everything you wrote — §9 `Verify` blocks, `tasks.json` `verify` arrays,
-epic Verify blocks, §20.1's list — for a leading `!`, for `test $? -ne`, and for any comment reading
+epic Verify blocks, §20.1's list — for a leading `!`, for `test $? -ne`, for `; test $?` (rewrite it
+to the strict form above), and for any comment reading
 *expect: non-zero*, *expect: fails*, or *expect: error*. For each hit, answer two questions in one
 line each: **which exit code does the property produce**, and **which codes does this command emit
 for usage errors**. If the sets overlap, or you cannot name the first, rewrite the check. Then read
@@ -660,7 +677,7 @@ permission bit and the interpreter line are right, and that the two files agree.
 | Not a gate | A gate |
 |---|---|
 | `{pm} build`  `# expect: exit 0` | `{pm} build && ./dist/cli.js --version`  `# expect: exit 0, prints the version` |
-| "the package is publishable" | `npm pack && npm i -g ./<tarball> && <bin> --help`  `# expect: exit 0` |
+| "the package is publishable" | `b=$(mktemp -d) && i=$(mktemp -d) && npm pack --pack-destination "$b" && npm i --prefix "$i" "$b"/*.tgz && npm --prefix "$i" exec --no -- <bin> --help`  `# expect: exit 0 — two fresh temp dirs outside the repo (build, install) so undeclared deps cannot resolve from the repo's node_modules, as in cli-library-mcp.md; the *.tgz glob matches the one file npm named, never a hand-typed tarball name (#21); never -g; the OS reaps the temp dirs. §19.3 allows Bash(mktemp -d), Bash(npm pack --pack-destination:*), Bash(npm i --prefix:*) and Bash(npm --prefix:*)` |
 | "the server builds" | `curl -sf localhost:3000/health`  `# expect: exit 0, body {"ok":true}` |
 | "the image builds" | `docker run --rm <image> --version`  `# expect: exit 0` |
 
@@ -907,8 +924,9 @@ post-condition of a later phase of the same step.** The family to watch for:
 
 2. **Restate the gate so it does not depend on commit state.** Assert the file **exists on disk**
    rather than that git tracks it (`test -f LICENSE`); assert the **diff against the step's own
-   expected output** is empty rather than that the tree is clean; assert `! git check-ignore -q
-   <path>` rather than that the path is already indexed.
+   expected output** is empty rather than that the tree is clean; assert `git check-ignore -q
+   <path>` exits 1 (`status=0; git check-ignore -q <path> || status=$?; test "$status" -eq 1`)
+   rather than that the path is already indexed.
 
 **A third move is not legal: telling the builder to commit early.** The step template orders the
 Checkpoint last on purpose, so the tag points at a state the gate already verified. Do not write
@@ -942,12 +960,13 @@ manifest — so the builder reinstalls tooling, gets the same failure, and burns
 problem. The same hazard covers any emitted file a later step edits: a lockfile, a compiler config a
 step tightens, a compose file a step extends.
 
-**So write the copy guarded, and put the reason next to it** — one of these three, in a trailing
-comment so nobody simplifies it away:
+**So write the copy guarded, and put the reason next to it** — one of these, in a trailing comment
+so nobody simplifies it away:
 
 | Guard | Shape | Use when |
 |---|---|---|
-| Copy only what is missing | `cp -Rn workspace/. <project-root>/`  `# -n: never clobber a file the build has since changed` | the platform's `cp` supports `-n` |
+| Copy only what is missing, portably | `rsync -a --ignore-existing workspace/ <project-root>/`  `# skips existing files and exits 0 either way` | `rsync` is available — the default |
+| Copy only what is missing | `cp -Rn workspace/. <project-root>/ \|\| true`  `# -n: never clobber; BSD/macOS cp exits 1 when it skips, and skipping is the intended outcome` | fallback where `rsync` is absent |
 | Gate on a marker | `[ -e <root>/.workspace-applied ] \|\| { cp -R workspace/. <root>/ && touch <root>/.workspace-applied; }` | portability matters, or the copy must happen exactly once |
 | Copy, then re-derive | copy unconditionally, then re-run the install or regenerate command that rebuilds whatever was overwritten | every overwritten file is machine-generated |
 
@@ -1271,9 +1290,10 @@ where both sides exist · bundle-path exclusion: 4 tree-walking configs each car
 `blueprints/` exclude line · guards exit 0: 5 guarded Bootstrap commands checked, the workspace copy
 uses `rsync --ignore-existing` because `cp -Rn` exits 1 on BSD/macOS when it skips · byte-exact
 reconciliation: 2 golden files, each read against the §4 rules that constrain it (paths relative to
-the run root — no parent prefix) and against the pinned runtime; both runtime literals verified by
-the main thread, see UNVERIFIED LITERALS below · gate failure attribution: 3 gates whose success is a
-non-zero exit, each asserting the specific code, 0 bare `!`/`test $? -ne 0`, and every command's arity
+the run root — no parent prefix) and against the pinned runtime; 1 runtime literal I could not
+execute, named under UNVERIFIED LITERALS below · gate failure attribution: 3 gates whose success is a
+non-zero exit, each asserting the specific code in the `status=0; cmd || status=$?` form, 0 bare
+`!`/`test $? -ne 0`/`cmd; test $?`, and every command's arity
 checked against its docs · governing-file ordering: `.gitignore` with its 3 exception lines is
 written in §10's Bootstrap above the first commit; no §9 step creates it
 
@@ -1288,7 +1308,8 @@ written in §10's Bootstrap above the first commit; no §9 step creates it
 shipping, and correct the golden file if the output differs):**
 - `workspace/tests/golden/report.txt`, line 4 — the parse-error text. Command:
   `node -e 'try{JSON.parse("{\"a\":}")}catch(e){console.log(e.message)}'` on the pinned Node.
-  Expected literal as written: `Expected double-quoted property name in JSON at position 5`.
+  Literal as written: `<parse-error message as written in the golden>` — replace it with the
+  command's actual output.
 
 **Compatibility substitution:**
 - Requested X + Y is listed as known-bad in stack-compatibility.md. Wrote Z instead.
@@ -1323,7 +1344,7 @@ Resolve these in the main thread and re-invoke.
    **Every file that verify command touches is created by that step or an earlier one** — see
    *Verify parity*. A verify command whose test file, config, fixture or service exists in no step is
    a defect you fix before emitting, never a defect you emit.
-3. **Max ~6 acceptance criteria and ~5 files per step.** Over that, split it.
+3. **2–6 acceptance criteria and at most 5 files per step.** Over that, split it.
 4. **Never write a version from memory.** The session's `stack-researcher` report first, the runtime
    track as fallback, or unpinned and named in your return value.
 5. **Never invent a requirement.** Technical defaults are fine and must be labeled; product facts are not.
@@ -1398,7 +1419,8 @@ Resolve these in the main thread and re-invoke.
     exception.** Scaffolders ship broad globs. List the committed files, match them against the
     ignore file the blueprint leaves on disk, and write the literal negation line into §10 for every
     hit. Prose is not an exception, and a swallowed file silently breaks §20.1's clean checkout.
-26. **A resolution convention is decided once and reconciled against every loader.** Any
+26. **A resolution convention is decided once and reconciled against every loader.** *(Enforced by
+    validator finding #38.)* Any
     import/include/link convention you state — specifier or extension form, path alias, export
     condition, link mode — gets walked against **app source, test files, standalone scripts, and the
     build**, plus every other loader the project has. Fill §19.6's *Resolution convention matrix*:
@@ -1410,9 +1432,11 @@ Resolve these in the main thread and re-invoke.
 27. **Every `Verify` command exits 0 when the step is correct.** A runner reads only the exit status
     and cannot tell "the tool errored" from "the tool correctly errored". Gating a documented error
     path is right; writing it bare (`tool --bad-flag  # expect: exit 2`) is a permanently failing
-    gate. Wrap it so the line itself exits 0 — `tool --bad-flag; test $? -eq 2` — and keep the
+    gate. Wrap it so the line itself exits 0 — `status=0; tool --bad-flag || status=$?; test "$status" -eq 2`
+    (not `tool --bad-flag; test $? -eq 2`, which `set -e` aborts before `test` runs) — and keep the
     expected code visible. Same rule for §20.1.
-28. **Every check must be possible in the medium it runs in.** Confirm the property is observable by
+28. **Every check must be possible in the medium it runs in.** *(Enforced by validator finding
+    #39.)* Confirm the property is observable by
     the thing observing it before you specify the check: a runtime check cannot see type-only or
     otherwise erased constructs, a static parse cannot see runtime values, a type check cannot see
     I/O. When it is not observable there, change the medium or change the property — never emit a
@@ -1421,7 +1445,8 @@ Resolve these in the main thread and re-invoke.
     non-clobbering form with the reason in a trailing comment, and name the files that are never
     overwritten. An unguarded recursive copy reverts the emitted package manifest and the next
     command fails naming a missing binary — which reads as a broken install, not a clobbered file.
-30. **No step may draw a contract from a `NOT APPLICABLE` section.** Grep every section you mark
+30. **No step may draw a contract from a `NOT APPLICABLE` section.** *(Enforced by validator
+    finding #40.)* Grep every section you mark
     `NOT APPLICABLE` for inbound references, and grep every "matching / as defined in / byte-exact"
     phrase for a referent with literal content. If a step needs the contract, put the content
     somewhere concrete first — a fenced block in the step, a fixture in §19.6, or a section that
@@ -1491,7 +1516,7 @@ Resolve these in the main thread and re-invoke.
     pathnames on a flag that takes one, exiting **128** for usage rather than **1** for the property —
     green, and green even if the files *were* ignored. Any gate whose success condition is a non-zero
     exit must **distinguish the expected failure code from a usage error**, or be restructured so
-    success is exit 0. Prefer asserting the specific code (`cmd; test $? -eq 1`); `!` and
+    success is exit 0. Prefer asserting the specific code (`status=0; cmd || status=$?; test "$status" -eq 1`); `!` and
     `test $? -ne 0` accept every failure equally and are not gates. This compounds with rule 27: that
     one made correct steps exit 0, this one makes failures mean what they claim.
 38. **The ignore file precedes the first commit.** *(Enforced by validator finding #37.)* §10's

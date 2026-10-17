@@ -2,7 +2,7 @@
 
 > Taking money reliably — choosing a billing model, deciding who owes the tax, and surviving webhooks that arrive twice, out of order, or not at all.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## When a project needs this
 
@@ -11,7 +11,7 @@ Last verified: 2026-07-27
 - Access to a feature depends on what someone bought — entitlement gating is a payments problem, not a UI problem.
 - Money must reach a third party (a seller, a creator, a contractor) rather than staying with you.
 
-Skip only when the first release is genuinely free with no upgrade path. Add the `subscription` table anyway if a paid tier appears anywhere in the brief; retrofitting entitlements is worse than carrying an unused table.
+Skip only when the first release is genuinely free with no upgrade path. Add the `subscriptions` table anyway if a paid tier appears anywhere in the brief; retrofitting entitlements is worse than carrying an unused table.
 
 ## Decision matrix
 
@@ -53,7 +53,7 @@ Stripe wins on documentation, test-mode tooling, connected accounts for marketpl
 
 Two additional defaults:
 
-- **Mobile apps:** digital goods and in-app subscriptions must go through the store's in-app purchase system. Physical goods and real-world services must not. Use a subscription abstraction layer over both stores rather than writing receipt validation twice — details in `knowledge/shapes/mobile-app.md`.
+- **Mobile apps:** digital goods and in-app subscriptions go through the store's in-app purchase system by default (Apple's US storefront also permits external purchase links; other storefronts are narrower — re-check the store rules before shipping a non-IAP path). Physical goods and real-world services must not. Use a subscription abstraction layer over both stores rather than writing receipt validation twice — details in `knowledge/shapes/mobile-app.md`.
 - **Do not build your own billing UI.** Use the provider's hosted checkout and hosted customer portal until a concrete requirement forces you off them. Every hour spent on a bespoke card form is an hour spent enlarging your PCI scope.
 
 ## The webhook reliability problem

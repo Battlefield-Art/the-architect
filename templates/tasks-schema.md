@@ -3,7 +3,7 @@
 > The machine-readable build order. A dependency graph, not a checklist — which is what lets
 > independent branches run in parallel and lets an interrupted build resume without a human.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 Emitted in **bundle mode** only (see `questions/phase-4-generate.md`):
 
@@ -56,7 +56,7 @@ A JSON array of task objects. No wrapper, no metadata envelope — the array *is
 | `epic` | string | yes | Slug of the epic file, without extension: `02-auth` → `epics/02-auth.md`. |
 | `dependencies` | string[] | yes | Task ids that must be `done` first. `[]` for roots. **This is what makes it a DAG.** May cross epics. |
 | `priority` | string | yes | `p0` blocks a usable build · `p1` needed for launch · `p2` deferrable. **Metadata only — it does not select the next task.** See "Selection". |
-| `acceptance` | string[] | yes | 1–6 EARS criteria. **WHEN** `<trigger>` **THE SYSTEM SHALL** `<observable response>`. Each one must be decidable by a script, on this machine, during the build. |
+| `acceptance` | string[] | yes | 1–6 EARS criteria in the schema; the writer emits 2–6, at least one of them a failure or edge case (a 1-item array stays valid so older bundles still resume). **WHEN** `<trigger>` **THE SYSTEM SHALL** `<observable response>`. Each one must be decidable by a script, on this machine, during the build. |
 | `verify` | string[] | yes | **An ARRAY of shell commands — always, even when there is one.** Each is run from the target project root, **exits 0 when the task is correct**, and exits non-zero on failure. |
 | `checkpoint` | string | yes | The version-control tag this task's commit carries: `step-{NN}-{slug}`, the **same tag** the corresponding `blueprint.md` §9 step carries. `NN` is the global two-digit step number, not the per-epic task number. This is the rollback target. |
 | `files` | string[] | yes | Paths this task creates or edits. Globs allowed. Doubles as the parallel-safety check. |
@@ -91,13 +91,14 @@ Also banned: a criterion the blueprint already satisfies before any code is writ
 documented"). That gates nothing.
 
 **Write every `acceptance` string so it stands alone — this is the only place it is authored.** The
-string is copied *verbatim* into the epic's task block, and the epic must be completable without
+string is copied into the epic's task block — identical after the emphasis normalization defined in
+`agents/blueprint-writer.md` *Acceptance strings* — and the epic must be completable without
 opening `blueprint.md`. A criterion whose meaning depends on a section the epic reader will not open
-("…SHALL match the envelope in §5") is therefore unusable there, and because the two copies must be
-byte-identical, it cannot be fixed on the epic side either. Fix it here: state the contract in the
+("…SHALL match the envelope in §5") is therefore unusable there, and because the two copies must
+match, it cannot be fixed on the epic side either. Fix it here: state the contract in the
 criterion, and keep the section pointer as a parenthetical if it is useful — "WHEN a handler throws
 THE SYSTEM SHALL return `{ error: { code, message } }` with `code` from the enumerated set (§5)."
-`templates/epic-template.md`, *Self-contained vs. verbatim*, is the full rule.
+`templates/epic-template.md`, *Precedence*, is the full rule.
 
 **`verify` is an ARRAY of commands — every one of them runs, and every one must pass.** A consumer
 that treats it as a single string silently runs only the first check and marks the task done on a
@@ -112,8 +113,9 @@ so and stop rather than executing commands in the wrong directory and reporting 
 
 **`verify` must be executable, not aspirational.** `pnpm test tests/auth.spec.ts` is a verify
 command. `check that login works` is not. If a criterion genuinely cannot be checked by a command
-(visual layout, copy tone), say so explicitly: `# manual: compare against epics/04-ui.md §Header`.
-One escape hatch per epic, maximum — and it never gates a task, it only annotates one.
+(visual layout, copy tone), it is not a `verify` entry — a comment-only element exits 0 and gates
+nothing. If a property cannot be checked by a command, it is not a build gate: move it to §20.1's
+post-build launch checklist.
 
 **Every `verify` command EXITS 0 when the task is correct — the converse of "non-zero on failure",
 and the half that gets dropped.** The resume protocol reads exit status and nothing else: step 2 and
@@ -124,9 +126,9 @@ itself exits 0, with the expected code still visible:
 
 | Silently fails the gate forever | Correct — the line itself exits 0 |
 |---|---|
-| `"mytool --bad-flag"` | `"mytool --bad-flag; test $? -eq 2"` |
-| `"mytool query no-such-tag"` | `"mytool query no-such-tag; test $? -eq 1"` |
-| `"grep -q FIXME out.txt"` (expecting no match) | `"! grep -q FIXME out.txt"` |
+| `"mytool --bad-flag"` | `"status=0; mytool --bad-flag \|\| status=$?; test \"$status\" -eq 2"` |
+| `"mytool query no-such-tag"` | `"status=0; mytool query no-such-tag \|\| status=$?; test \"$status\" -eq 1"` |
+| `"grep -q FIXME out.txt"` (expecting no match) | `"status=0; grep -q FIXME out.txt \|\| status=$?; test \"$status\" -eq 1"` (2 = grep error, and that now fails) |
 | `"curl -f localhost:3000/missing"` (expecting 404) | `"test \"$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/missing)\" = 404"` |
 
 Read every `verify` array top to bottom and ask, for a *correct* task, what status each line exits
@@ -514,7 +516,7 @@ Before emitting `tasks.json`:
       machine during the build** — nothing waiting on a human, a store queue, a certificate
       authority, or a physical device.
 - [ ] **Every `acceptance` string is self-contained.** It carries the contract it asserts rather than
-      pointing at a `blueprint.md` section for it, because the epic copies it verbatim and the epic
+      pointing at a `blueprint.md` section for it, because the epic copies it (emphasis aside) and the epic
       reader never opens `blueprint.md`. A bare `§N` reference with no contract beside it is a defect
       here, not in the epic.
 - [ ] Nothing that needs an external party is a task. It is in `blueprint.md`'s post-build launch

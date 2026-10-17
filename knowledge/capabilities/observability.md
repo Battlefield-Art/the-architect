@@ -3,7 +3,7 @@
 > Being able to answer "what is it doing right now, why did that request fail, and what is it costing
 > me" — without redeploying to add a log line.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## When a project needs this
 
@@ -132,7 +132,7 @@ does not see any of what matters. Instrument the model call itself.
 | **Cost** | Computed per call and attributed to user, organization, and feature | Without attribution you know the bill but not who or what caused it |
 | **Latency** | Time to first token *and* total duration, plus streaming status | TTFT is what the user feels; total duration is what your timeouts must respect |
 | **Tool calls** | Tool name, argument validity, success/failure, retry count | Tool-call failure is the top cause of "the agent got stuck" — see `knowledge/capabilities/agent-loop.md` |
-| **Stop reason** | Normal stop, max tokens, refusal, tool use, error | Silent truncation at a token ceiling looks like a model quality problem and is not |
+| **Stop reason** | Normal stop, max tokens, refusal (with its category), tool use, error | Silent truncation at a token ceiling looks like a model quality problem and is not; a refusal is a `200`, so count refusals per category or they never show up as errors |
 | **Retries and fallbacks** | Rate-limit hits, overload responses, model fallbacks taken | A creeping retry rate is a capacity problem before it is an outage |
 | **Eval scores** | Offline suite score per release; online sampled grading | The only defense against a prompt or model change quietly degrading output |
 | **Full trace** | Prompt, tool calls, and final output linked as one tree | You cannot debug an agent from a single log line |

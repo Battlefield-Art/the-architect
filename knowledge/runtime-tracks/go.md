@@ -3,7 +3,7 @@
 > Choose Go when the deliverable is a high-throughput service or a single static binary, and you are
 > willing to trade expressiveness for predictable latency, predictable memory, and a trivial deploy.
 
-**Last verified: 2026-07-27** — every version below was checked on this date against
+**Last verified: 2026-10-17** — every version below was checked on this date against
 `https://go.dev/dl/?mode=json` (toolchain) and `proxy.golang.org/<module>/@latest` (modules).
 When refreshing this file, re-verify and update this line.
 
@@ -30,31 +30,31 @@ When refreshing this file, re-verify and update this line.
 
 | Layer | Choice | Version | Notes |
 |---|---|---|---|
-| Toolchain | Go | **go1.26.5** | Current stable. Previous supported line: go1.25.12. go1.27rc2 exists — do not ship on it |
+| Toolchain | Go | **go1.27.2** | Current stable. Previous supported line: go1.26.9. Most pinned modules now require `go 1.26.0` |
 | HTTP routing | `net/http` **stdlib** | (stdlib) | Default. Method + wildcard patterns since Go 1.22 |
-| HTTP routing (opt) | `github.com/go-chi/chi/v5` | v5.3.1 | Only when you need nested route groups / per-subtree middleware |
+| HTTP routing (opt) | `github.com/go-chi/chi/v5` | v5.5.0 | Only when you need nested route groups / per-subtree middleware |
 | HTTP framework (opt) | `github.com/gin-gonic/gin` | v1.12.0 | Only if the team already knows it |
-| HTTP framework (opt) | `github.com/labstack/echo/v4` | v4.15.4 | Same caveat as Gin |
-| Postgres driver | `github.com/jackc/pgx/v5` | v5.10.0 | Use the native `pgxpool` API, not `database/sql` |
+| HTTP framework (opt) | `github.com/labstack/echo/v5` | v5.4.0 | Same caveat as Gin. v4 (v4.16.0) gets fixes only until 2026-12-31 — do not start on it |
+| Postgres driver | `github.com/jackc/pgx/v5` | v5.11.0 | Use the native `pgxpool` API, not `database/sql` |
 | Query codegen | `github.com/sqlc-dev/sqlc` | v1.31.1 | SQL in `.sql` files → typed Go. Not an ORM |
-| Migrations | `github.com/pressly/goose/v3` | v3.27.3 | Embeds into the binary via `embed.FS` |
-| SQLite (pure Go) | `modernc.org/sqlite` | v1.54.0 | No cgo — keeps the static-binary story intact |
-| Assertions | `github.com/stretchr/testify` | v1.11.1 | `require` only. See Gotchas |
-| Struct diffing | `github.com/google/go-cmp` | v0.7.0 | For comparing structs in tests |
-| Integration tests | `github.com/testcontainers/testcontainers-go` | v0.43.0 | Real Postgres/Redis in tests |
-| Mocks | `go.uber.org/mock` | v0.6.0 | Successor to the archived `golang/mock` |
-| Lint | `github.com/golangci/golangci-lint/v2` | v2.12.2 | v2 config schema — see Gotchas |
-| CLI framework | `github.com/spf13/cobra` | v1.10.2 | Default. `urfave/cli/v3` v3.10.1 is a lighter alternative |
-| TUI | `github.com/charmbracelet/bubbletea` | v1.3.10 | With `lipgloss` v1.1.0 for styling |
-| MCP server | `github.com/modelcontextprotocol/go-sdk` | v1.6.1 | Official SDK |
+| Migrations | `github.com/pressly/goose/v3` | v3.29.0 | Embeds into the binary via `embed.FS` |
+| SQLite (pure Go) | `modernc.org/sqlite` | v1.60.1 | No cgo — keeps the static-binary story intact |
+| Assertions | `github.com/stretchr/testify` | v1.12.1 | `require` only. See Gotchas |
+| Struct diffing | `github.com/google/go-cmp` | v0.7.0 | For comparing structs in tests. Last release 2025-01 — stable, slow-moving |
+| Integration tests | `github.com/testcontainers/testcontainers-go` | v0.44.0 | Real Postgres/Redis in tests |
+| Mocks | `go.uber.org/mock` | v0.6.0 | Successor to the archived `golang/mock`. Last release 2025-08 |
+| Lint | `github.com/golangci/golangci-lint/v2` | v2.15.0 | v2 config schema — see Gotchas. go1.27 support since v2.13.0 |
+| CLI framework | `github.com/spf13/cobra` | v1.10.2 | Default. `urfave/cli/v3` v3.14.0 is a lighter alternative |
+| TUI | `charm.land/bubbletea/v2` | v2.1.0 | With `charm.land/lipgloss/v2` v2.0.6 for styling. v2 moved to the `charm.land` import path — the `github.com/charmbracelet/...` v2 path will not resolve |
+| MCP server | `github.com/modelcontextprotocol/go-sdk` | v1.8.0 | Official SDK |
 | Config | `github.com/caarlos0/env/v11` | v11.4.1 | Env → struct. Prefer over Viper unless you need files |
-| Validation | `github.com/go-playground/validator/v10` | v10.30.3 | Struct-tag validation for request bodies |
+| Validation | `github.com/go-playground/validator/v10` | v10.30.5 | Struct-tag validation for request bodies |
 | JWT | `github.com/golang-jwt/jwt/v5` | v5.3.1 | v4 and earlier have CVEs — never pin below v5 |
-| Redis | `github.com/redis/go-redis/v9` | v9.21.0 | |
-| Background jobs | `github.com/riverqueue/river` | v0.41.0 | Postgres-backed queue; no extra infra |
-| Tracing | `go.opentelemetry.io/otel` | v1.44.0 | |
-| Release automation | `github.com/goreleaser/goreleaser/v2` | v2.17.1 | Cross-compiles + publishes in CI |
-| Live reload (dev) | `github.com/air-verse/air` | v1.67.3 | |
+| Redis | `github.com/redis/go-redis/v9` | v9.23.0 | |
+| Background jobs | `github.com/riverqueue/river` | v0.49.0 | Postgres-backed queue; no extra infra. 0.x — pin exactly; read the changelog on every bump |
+| Tracing | `go.opentelemetry.io/otel` | v1.47.0 | |
+| Release automation | `github.com/goreleaser/goreleaser/v2` | v2.18.3 | Cross-compiles + publishes in CI. Building it from source needs go ≥1.27.1 |
+| Live reload (dev) | `github.com/air-verse/air` | v1.67.4 | |
 
 ## Setup
 
@@ -63,15 +63,15 @@ mkdir myapp && cd myapp
 go mod init github.com/you/myapp
 
 # Pin the toolchain in go.mod so every machine and CI runner agrees.
-go mod edit -go=1.25.0 -toolchain=go1.26.5
+go mod edit -go=1.26.0 -toolchain=go1.27.2
 
-go get github.com/jackc/pgx/v5@v5.10.0 github.com/pressly/goose/v3@v3.27.3 \
+go get github.com/jackc/pgx/v5@v5.11.0 github.com/pressly/goose/v3@v3.29.0 \
        github.com/caarlos0/env/v11@v11.4.1
 
 # Build-time tools become `tool` directives in go.mod (Go 1.24+), so `go tool <name>`
 # runs the pinned version with nothing installed globally.
 go get -tool github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
-go get -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+go get -tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
 
 mkdir -p cmd/api internal/{http,store,config} migrations
 ```
@@ -93,7 +93,7 @@ pkg/                   # ONLY if an external repo imports it. Most projects need
 - **Errors wrap with `%w`** (`fmt.Errorf("load user %s: %w", id, err)`), inspected with `errors.Is` /
   `errors.As`. Never compare error strings.
 - **`log/slog` for logging** — stdlib, structured, zero deps. `slog.NewJSONHandler` in production;
-  `github.com/lmittmann/tint` v1.2.0 for readable dev output.
+  `github.com/lmittmann/tint` v1.2.1 for readable dev output.
 - **No global state, no DI framework.** Dependencies are struct fields on a `Server` value wired in
   `main`. Skip `pkg/` unless an external repo imports it — the compiler enforces `internal/`.
 - **300 lines per file, soft cap.** Split by responsibility, not by type.
@@ -203,20 +203,20 @@ SQLite: `mattn/go-sqlite3` requires cgo, so use `modernc.org/sqlite` instead.
 
 ## Gotchas
 
-- **`go mod init` under Go 1.26 writes `go 1.25.0`, not `go 1.26.0`** (release candidates write
-  `go 1.24.0`). That line is the *minimum* language version; add a separate `toolchain go1.26.5`
-  directive to pin what actually builds.
+- **`go mod init` writes the full toolchain version** (`go 1.27.2` under go1.27.2). The "1.(N-1).0"
+  default announced in the Go 1.26 notes shipped only in go1.26.0 and was reverted in go1.26.1.
+  Lower it deliberately (`go mod edit -go=1.26.0`) and add a `toolchain go1.27.2` line to pin what builds.
 - **golangci-lint v2 changed the config schema.** A v1 `.golangci.yml` will not load. v2 files start
   with `version: "2"`, and formatters (`gofmt`, `gci`, `goimports`) moved out of `linters` into a
   top-level `formatters` block run by `golangci-lint fmt`. Migrate with `golangci-lint migrate`.
 - **Use `testify/require`, not `testify/assert`.** `assert` records the failure and keeps executing,
   so a nil-pointer assertion is followed by a panic that hides the real error. `require` stops the
   test at the failure.
-- **`encoding/json/v2` is still experimental** behind `GOEXPERIMENT=jsonv2` as of go1.26.5 — the 1.26
-  release notes announce no change in status. Do not put it in a production build; re-verify when
-  refreshing this file.
-- **Green Tea GC is the default in Go 1.26** (10–40% less GC overhead). The `GOEXPERIMENT=greenteagc`
-  opt-in from 1.25 is obsolete; the `nogreenteagc` escape hatch is expected to go in 1.27.
+- **`encoding/json/v2` is GA as of Go 1.27**, and `encoding/json` (v1 API) is now backed by the v2
+  implementation — behaviour is preserved but error-message text may differ, so do not assert on
+  JSON error strings. Opt out with `GOEXPERIMENT=nojsonv2` (slated for removal). New code may use v2 directly.
+- **Green Tea GC is the default since Go 1.26** (10–40% less GC overhead). The `GOEXPERIMENT=nogreenteagc`
+  escape hatch still exists in go1.27.2 despite the 1.26 notes expecting its removal — do not rely on it.
 - **pgx: use `pgxpool`, not `database/sql`.** Going through `database/sql` costs you the binary
   protocol, native `LISTEN/NOTIFY`, `CopyFrom`, and typed Postgres arrays/JSONB.
 - **sqlc is not an ORM.** Changing a query means re-running `go tool sqlc generate` — wire it into CI

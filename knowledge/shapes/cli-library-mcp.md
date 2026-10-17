@@ -2,7 +2,7 @@
 
 > Software whose consumer is a developer or an agent, not an end user — a command-line tool, a published package or SDK, or an MCP server. The deliverable is an API surface plus a distribution channel.
 
-Last verified: 2026-07-28
+Last verified: 2026-10-17
 
 ## Is this your project?
 
@@ -93,7 +93,7 @@ Rule: `internal/` is the default and `pkg/` is the exception. Anything reachable
 10. **Compatibility matrix** — CI runs the suite on every supported OS and on the oldest runtime the track declares as the floor. *Done when:* the matrix is green and the floor is stated in the package manifest, not just the README.
 11. **Packaging + distribution** — build the real artifact for the ecosystem (see table below). *Done when:* the artifact installs in **one** command into an environment that holds no copy of this source tree, and `tool --version` prints the tag. See *Proving the install without a container* below — either path satisfies this.
 12. **Release automation** — tag push builds, checksums, signs, generates the changelog, publishes. *Done when:* a dry run produces artifacts and a changelog with no manual step other than pushing the tag.
-13. **MCP only — transport and handshake** — support stdio and streamable HTTP; negotiate capabilities on connect. *Done when:* an MCP inspector connects over both transports, completes `initialize`, and lists every tool with its schema.
+13. **MCP only — transport and dual-era versioning** — support stdio and streamable HTTP; serve the current stateless revision (per-request `_meta` version, mandatory `server/discover`) as the baseline, and also answer a legacy `initialize` so older hosts still connect. *Done when:* a test exits 0 that, over both transports, gets a `server/discover` result listing the current revision, gets a successful result for a legacy-revision `initialize`, and lists every tool with its schema in both eras.
 14. **Adoption smoke test** — install the *published* artifact the way a stranger would, somewhere the source tree is not, and run the README's first example. *Done when:* the install command exits 0 and the example's stdout byte-matches `docs/examples/01-*.txt`, with the workspace unreachable from wherever the command ran. See *Proving the install without a container* below.
 
 ## Declaring the surface vs freezing it
@@ -171,7 +171,7 @@ either path in *Proving the install without a container*.
 
 ## Pitfalls
 
-- **Assuming MCP went stateless.** The current *ratified* MCP spec is the stateful one; the stateless revision is an unratified draft, and its own compatibility matrix says modern-only servers fail against deployed hosts. Build dual-era and default to the `initialize` handshake.
+- **Shipping a modern-only (or legacy-only) MCP server.** The current spec revision is stateless — version in every request's `_meta`, `server/discover` mandatory, `initialize` legacy — and its compatibility matrix says legacy clients, still common among deployed hosts, fail against modern-only servers. Build dual-era: modern baseline, legacy `initialize` answered. Re-check `modelcontextprotocol.io/specification/versioning` at build time.
 - **Anything printed to stdout that is not data.** Logs on stdout break pipes, and on an MCP stdio transport one stray print corrupts the JSON-RPC stream permanently. Data to stdout, everything else to stderr.
 - **A barrel file that re-exports everything.** Every accidental export is a support obligation. Allowlist exports; keep the rest internal.
 - **Untested examples.** Docs drift within one release. If an example is not executed by CI, assume it is already wrong.

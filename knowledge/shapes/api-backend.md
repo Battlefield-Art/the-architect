@@ -3,7 +3,7 @@
 > A headless service with no UI of its own, consumed over the network by other software — your own
 > frontend, a partner's system, or an AI agent.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## Is this your project?
 
@@ -56,7 +56,7 @@ Alternatives:
 | `users` / `refresh_tokens` | Human principals with roles; rotating refresh state, revocable per device |
 | `api_keys` | Hashed key, display prefix, scopes, last_used_at, revoked_at |
 | `<primary_resource>` | What the API is actually about; tenant-scoped |
-| `audit_log` | actor, action, target, ip, timestamp — append-only |
+| `audit_events` | actor, action, target, ip, occurred_at — append-only; the one audit table, per `knowledge/capabilities/enterprise-readiness.md` |
 | `jobs` | Queued and completed background work with retry count |
 | `webhook_endpoints` / `webhook_deliveries` | Outbound URLs, signing secrets, attempt history |
 | `usage_events` | Metered call records, when billing per unit |
@@ -100,11 +100,13 @@ Design for it up front — cheap at the start, painful to retrofit.
 | MCP server | The same services as typed tools an agent host can connect to | Same repo, shares the service layer |
 | Error text | Says what was wrong and what to send instead | No stack traces, no opaque codes |
 
-**On MCP statefulness — get this right.** The latest *ratified* MCP spec revision is stateful. A
-stateless revision exists only as an **unratified draft**, and its own compatibility matrix shows
-modern-only servers failing against hosts deployed today. Build **dual-era**: default to the
-`initialize` handshake and session lifecycle, and treat stateless transport as an additive path you
-support, not the baseline you assume.
+**On MCP statefulness — get this right.** The current MCP spec revision (2026-07-28, per
+`modelcontextprotocol.io/specification/versioning`) is **stateless**: every request carries its
+protocol version in `_meta`, `server/discover` is mandatory, and the `initialize` handshake is the
+**legacy** era. Its own compatibility matrix shows legacy-only clients — hosts still deployed today —
+failing against modern-only servers. Build **dual-era**: modern per-request metadata as the baseline,
+plus answering `initialize` with legacy session semantics for older hosts. Re-read the versioning
+page at build time; the current revision moves.
 
 Keep the tool surface small and task-shaped. Do not auto-generate one tool per endpoint — an agent
 handed sixty CRUD tools performs worse than one handed six verbs matching real jobs.
@@ -135,8 +137,11 @@ handed sixty CRUD tools performs worse than one handed six verbs matching real j
    with the same key returns the original response without creating a second row.
 9. **OpenAPI and llms.txt** — document served and diff-checked, agent map written. · *Done when:* CI
    fails if the committed OpenAPI document differs from the generated one.
-10. **MCP server** — task-shaped tools over the existing services, dual-era handshake. · *Done when:*
-    a host connects, lists tools, and completes a call whose effect is visible via the HTTP API.
+10. **MCP server** — task-shaped tools over the existing services, dual-era (modern baseline plus
+    legacy `initialize`). · *Done when:* an integration test exits 0 that (a) sends `server/discover`
+    and gets a result listing the current revision, (b) sends a legacy `initialize` and gets a result
+    rather than an error, and (c) lists tools and completes a call whose effect is visible via the
+    HTTP API.
 11. **Background jobs** — queue, worker, retry with backoff, dead-letter. · *Done when:* a job forced
     to fail three times lands in the dead-letter store and emits an alert-worthy log line.
 12. **Outbound webhooks** — signed payloads, retry schedule, delivery log. · *Done when:* a receiver

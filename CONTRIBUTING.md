@@ -198,8 +198,8 @@ de arriba.
 apuntar de vuelta a la tuya. No es preferencia de estilo: una auditoría encontró que 20 de 60 aristas
 eran de una sola dirección, y por eso la entrevista solo llegaba a unas 8 de las 14 shapes. Un PR que
 agrega una shape toca **al menos cuatro archivos**. Y regístrala en `skills/architect/SKILL.md`,
-`CLAUDE.md`, `questions/phase-1-discovery.md` y `questions/phase-2-branches.md`, o nadie llegará a
-ella.
+`CLAUDE.md`, `questions/phase-1-discovery.md`, `questions/phase-2-branches.md` y en la lista "Shapes
+that use this track" de su runtime track, o nadie llegará a ella.
 
 ---
 
@@ -376,7 +376,7 @@ condition a script could evaluate today, on this machine, without leaving it.
 
 | Not acceptable | Acceptable |
 |---|---|
-| "billing works" | `pnpm test src/api/webhooks` passes, and a `subscriptions` row appears after `stripe trigger checkout.session.completed` |
+| "billing works" | `pnpm test src/api/webhooks` exits 0 after replaying the recorded `checkout.session.completed` fixture, and the test asserts exactly one `subscriptions` row |
 | "the store accepts the submission" | the packaging command produces a store-ready artifact and every required manifest field is non-empty |
 | "no clipped or overlapping text" | a snapshot test reports no text-node truncation at min and max type scale |
 | "a reviewer confirms it looks right" | a test asserts real command output byte-matches the documented example |
@@ -417,9 +417,12 @@ Then say in the PR description which SemVer category it falls into per
 [VERSIONING.md](VERSIONING.md) — MAJOR, MINOR, or PATCH — and why. If you are unsure, say that
 instead of guessing; getting this wrong is how a rename ships as a patch and breaks people.
 
-**Testing your change.** There is no test suite; the test is a real session. Run `/architect` (or
-`claude` in a clone) end to end with a brief that should hit your change, and confirm the interview
-reaches it and the generated blueprint reflects it. Then run `/architect-audit` on the result.
+**Testing your change.** CI (`.github/workflows/validate.yml`) enforces the mechanical rules — pins
+only in runtime tracks, every path resolves, clone/plugin parity, shape reciprocity, every capability
+reachable, manifests valid, CHANGELOG in step with the version. It cannot judge a prompt. The real
+test is a session: run `/architect` (or `claude` in a clone) end to end with a brief that should hit
+your change, confirm the interview reaches it and the generated blueprint reflects it, then run
+`/architect-audit` on the result.
 
 **ES — Antes de abrir el PR:** sin versiones fuera de `runtime-tracks/`; cada ruta que referencias
 existe (ábrelas); ningún nombre de skill ni comando de instalación sin verificar; ningún `/` en una
@@ -427,8 +430,9 @@ skill que se auto-activa; todo paso con "Done when" verificable; `Last verified:
 also` con dos rutas reales; si es una shape nueva, reciprocidad en ambas direcciones y registrada en
 los clasificadores; corriste una entrevista real de punta a punta; y **ningún blueprint generado en
 el diff**. Di en la descripción a qué categoría SemVer corresponde según
-[VERSIONING.md](VERSIONING.md) y por qué. No hay suite de tests: la prueba es una sesión real —
-corre `/architect` completo y luego `/architect-audit` sobre el resultado.
+[VERSIONING.md](VERSIONING.md) y por qué. CI revisa las reglas mecánicas (versiones,
+rutas, paridad, reciprocidad, manifiestos, CHANGELOG), pero no puede juzgar un prompt: la prueba de
+verdad es una sesión real — corre `/architect` completo y luego `/architect-audit` sobre el resultado.
 
 ---
 

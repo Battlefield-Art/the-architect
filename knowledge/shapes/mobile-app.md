@@ -2,7 +2,7 @@
 
 > An app installed on a phone from the App Store or Play Store, shipped on a release train and gated by platform review.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## Is this your project?
 
@@ -43,20 +43,20 @@ Alternatives:
 | Observability | You cannot SSH into a user's phone — crash + event telemetry is the only debugger | `knowledge/capabilities/observability.md` |
 | Testing | Device-matrix E2E; unit tests for logic that can't be tapped | `knowledge/capabilities/testing.md` |
 | Accessibility | Screen readers and dynamic type are review-gated on both stores | `knowledge/capabilities/accessibility.md` |
-| Payments rails | Digital goods must use store IAP; physical goods must not | `knowledge/capabilities/payments-rails.md` |
+| Payments rails | Digital goods use store IAP (Apple's US storefront also allows external purchase links/buttons); physical goods must not | `knowledge/capabilities/payments-rails.md` |
 | Database | Only when composing with a backend of your own | `knowledge/capabilities/database.md` |
 
 ## Data model
 
 | Entity | Notes |
 |---|---|
-| `user` | Server identity. Never the source of truth for local UI state. |
-| `device` | One row per install: push token, platform, app version, locale, timezone. Push targeting reads this. |
-| `session` | Refresh token in the OS secure enclave/keystore — never in plain local storage. |
+| `users` | Server identity (schema owned by `knowledge/capabilities/auth.md`). Never the source of truth for local UI state. |
+| `devices` | One row per install: push token, platform, app version, locale, timezone. Push targeting reads this. |
+| `sessions` | Server-side session/refresh state per `knowledge/capabilities/auth.md`; on the device the refresh token lives in the OS secure enclave/keystore — never in plain local storage. |
 | `<core entity>` | The thing the app is about. Needs `updated_at` and a client-generated ID so offline creates don't collide. |
 | `outbox` | Local-only. Queued mutations awaiting connectivity, with attempt count and last error. |
-| `notification_pref` | Per-category opt-in. One global toggle is not enough for review or for retention. |
-| `entitlement` | If paid: product ID, store, expiry, original transaction ID. Server-verified, never trusted from the client. |
+| `notification_prefs` | Per-category opt-in. One global toggle is not enough for review or for retention. |
+| `entitlements` | If paid: product ID, store, expiry, original transaction ID. Server-verified, never trusted from the client. |
 
 **Health/fitness variant adds:** `health_permission` (per data type, granted/denied/undetermined), `workout` (source: manual vs. platform-imported, with an external ID for dedupe), `daily_metric` (steps, sleep, HR — timestamped, one row per source per day). Never overwrite platform-sourced samples with your own aggregates.
 
@@ -93,7 +93,7 @@ assets/                   # Icons, splash, fonts
 5. **Core write path** — create/edit the main entity with optimistic UI. *Done when:* WHEN a write is submitted in airplane mode THE SYSTEM SHALL show it immediately in the list, persist it to the outbox, and flush it on reconnect without duplicating.
 6. **Offline and network state** — cache persistence, offline banner, retry policy. *Done when:* killing the app offline and relaunching offline still shows the last-synced list; the banner appears within 2s of losing connectivity.
 7. **Permissions flow** — camera/location/notifications/health requested in context, with a denied state. *Done when:* each permission has a pre-prompt explaining why, and a denied path that still leaves the app usable and offers a deep link to OS settings.
-8. **Push notifications** — token registration, per-category prefs, tap-to-route. *Done when:* an integration test asserts that on permission grant the device token is persisted to that user's `device` row and that re-registration replaces it rather than duplicating it; a test against a stubbed push provider asserts the outbound send carries the correct category, deep-link target, and per-category opt-in check, and sends nothing for an opted-out category; and a unit test feeds a synthesized notification object of every category into the tap-to-route handler for all three app states — cold start, background, foregrounded — and asserts each resolves to that category's screen. Delivery through the real push service to hardware is a launch-checklist item, not a build gate.
+8. **Push notifications** — token registration, per-category prefs, tap-to-route. *Done when:* an integration test asserts that on permission grant the device token is persisted to that user's `devices` row and that re-registration replaces it rather than duplicating it; a test against a stubbed push provider asserts the outbound send carries the correct category, deep-link target, and per-category opt-in check, and sends nothing for an opted-out category; and a unit test feeds a synthesized notification object of every category into the tap-to-route handler for all three app states — cold start, background, foregrounded — and asserts each resolves to that category's screen. Delivery through the real push service to hardware is a launch-checklist item, not a build gate.
 9. **Deep links and universal links** — scheme + verified domain links. *Done when:* a script drives the simulator/emulator URL-open command once per entry in the route table and asserts the resolved screen and parsed params for each; a test asserts the platform association files are generated with the correct app identifier and signing fingerprint and are served at their required paths with the required content type; and a test asserts the web fallback route returns 200 for every deep-linkable path. Tapping a real link on real hardware, and live domain verification, are launch-checklist items.
 10. **Health integration** *(variant only)* — platform health adapter, background delivery. *Done when:* a test injects a synthetic workout sample through the platform health API in the simulator/emulator, triggers a background refresh, and asserts exactly one `workout` row exists with the source marked platform-imported; re-injecting the identical sample and refreshing again asserts the row count is unchanged, deduped by external ID.
 11. **Payments** *(if paid)* — store IAP products, restore purchases, server-side receipt validation. *Done when:* a sandbox purchase grants the entitlement, "Restore Purchases" re-grants it on a fresh install, and a tampered client receipt is rejected server-side.
@@ -121,7 +121,7 @@ Not build steps — every item here waits on hardware you must hold or a queue y
 
 - **Treating OTA as a release valve for everything.** JS and assets ship over the air; anything touching native code — a new SDK, a new permission, a new capability, an icon change — requires a store build. Decide *per change* and write the rule into the project's CLAUDE.md.
 - **Asking for permissions on first launch.** Cold-prompting for notifications or location tanks accept rates and reads as spammy to reviewers. Ask at the moment of value, and always after your own explainer screen.
-- **Charging for digital goods outside store IAP.** Apple and Google both reject this and it is the single most common rejection in this shape. Physical goods and real-world services are the opposite — those must *not* use IAP.
+- **Charging for digital goods outside store IAP.** Apple and Google both reject this and it is the single most common rejection in this shape. Storefront-specific exception: Apple's guidelines 3.1.1(a) and 3.1.3 let apps on the **United States storefront** include buttons, external links, or calls to action to other purchase methods; other storefronts need a region-limited StoreKit External Purchase Link Entitlement or forbid it. These rules move — the builder re-checks `developer.apple.com/app-store/review/guidelines/` (and Google Play's payments policy) before shipping any non-IAP path. Physical goods and real-world services are the opposite — those must *not* use IAP.
 - **Retrofitting deep links.** Universal/app links require domain verification files, entitlements, and a route table. Doing it at step 9 is fine; doing it after launch means broken shared URLs in the wild.
 - **Assuming iOS and Android agree.** Safe areas, keyboard avoidance, back gesture, notification channels, and permission semantics all differ. Test both on hardware — simulators lie about push, biometrics, camera, and health data.
 - **Shipping health data without the privacy paperwork.** Both stores require declaring health data collection; you may not use it for advertising, and misdeclaring is a rejection *and* a policy strike.

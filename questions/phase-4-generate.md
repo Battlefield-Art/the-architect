@@ -3,7 +3,7 @@
 > Say how long it will take, verify versions, decide the output format, compose, validate, write to
 > the user's directory, hand off.
 
-Last verified: 2026-07-28
+Last verified: 2026-10-17
 
 **Paths in this file:** every bare path (`templates/…`, `knowledge/…`, `questions/…`) is relative to
 the plugin root — open it as `${CLAUDE_PLUGIN_ROOT}/<path>`. The one exception is `./blueprints/`,
@@ -11,12 +11,14 @@ which is always the **user's current working directory**.
 
 Phase 4 is a procedure, not a conversation. Follow the eight steps in order. **You do not interview
 the user here.** The interview is over; every decision that remains is yours to make and *announce*.
-The one thing you may stop to ask is destructive — overwriting an existing blueprint, in Step 7.
+You stop to ask in exactly two cases: before overwriting an existing blueprint (Step 3, before
+anything is written), and when the same validator finding or smoke-test command fails three times
+(Steps 5 and 6) — at that point it is a design gap, not a formatting one.
 Every step below carries a *Done when* — you do not advance past a step whose condition you cannot
 observe.
 
-**You are the only participant in Phase 4 with a shell.** `blueprint-writer` has `Read, Write, Glob,
-Grep`; `blueprint-validator` has `Read, Grep`. Neither can run a command. Every instruction anywhere
+**You are the only participant in Phase 4 with a shell.** `blueprint-writer` has `Read, Write, Edit,
+Glob, Grep`; `blueprint-validator` has `Read, Grep`. Neither can run a command. Every instruction anywhere
 in this plugin that says a block must be *executed* before shipping — `templates/blueprint-template.md`
 §10 Bootstrap, `knowledge/stack-compatibility.md` — resolves to **you, in Step 6**. If you do not run
 it, nobody does.
@@ -78,10 +80,10 @@ first registry call.
 **Never write a version number from memory.** v1 of The Architect hardcoded pins into thirteen files
 and went stale in four months. This step is the structural fix.
 
-Delegate to the **`stack-researcher`** subagent. It checks live registries and returns current
-versions with their compatibility notes. If it cannot be dispatched, do the registry checks yourself —
-see *Never hard-depend on a subagent* at the end of this file. The delegation is optional; the
-checking never is.
+Delegate to the **`stack-researcher`** subagent with the Agent tool (formerly Task). It checks live
+registries and returns current versions with their compatibility notes. If it cannot be dispatched,
+do the registry checks yourself — see *Never hard-depend on a subagent* at the end of this file. The
+delegation is optional; the checking never is.
 
 Hand it:
 
@@ -114,9 +116,14 @@ Every pin ships with its provenance — package, version, source URL, date check
 blueprint's version-provenance table. A package that was not researched says so, rather than
 implying a verification that never happened.
 
-*Done when:* every layer in the stack table carries a VERIFIED or UNVERIFIED status from a
-`stack-researcher` report dated today, each with a source URL and a checked date. Zero unlabeled
-layers.
+**Dispatching early is allowed.** Once the stack is presented in Phase 3 you may dispatch
+`stack-researcher` in the background (Agent tool, `run_in_background`) so the report is ready when
+the user confirms. If the user adjusts the stack, re-dispatch for the changed layers only. Never pin
+from a report whose layer list differs from the approved stack.
+
+*Done when:* every layer in the stack table carries a VERIFIED or UNVERIFIED status from a live
+registry check made this session (the `stack-researcher` report, or the main-thread fallback
+announced in one line), each with a source URL and a checked date. Zero unlabeled layers.
 
 ---
 
@@ -168,6 +175,11 @@ and that step count is the one that goes into the blueprint's build order.
 
 Slug the project name to kebab-case. `<project-slug>` below is that slug. This is the canonical
 layout — there are no variants.
+
+**Check for an existing blueprint before anything is written.** If `./blueprints/<project-slug>/`
+or `./blueprints/<project-slug>-blueprint.md` already exists in the user's cwd, say so and ask
+before overwriting — the writer saves files in Step 4, so asking any later is asking after the fact.
+On a no, suffix the slug `-v2` (then `-v3`, …) and use that slug everywhere below.
 
 ### Bundle
 
@@ -225,8 +237,9 @@ No external references: a reader with zero context must be able to build from th
 - All **20 numbered sections** of the blueprint template, even the inapplicable ones — those get
   `NOT APPLICABLE — <reason>` under the heading. Downstream tooling indexes by number.
 
-*Done when:* the target paths for the chosen mode are written out literally, and `./blueprints/`
-exists in the user's cwd.
+*Done when:* the target paths for the chosen mode are written out literally, `./blueprints/`
+exists in the user's cwd, and either no blueprint exists at those paths or the user has answered the
+overwrite question (yes, or a suffixed slug).
 
 ---
 
@@ -660,8 +673,8 @@ lost and unreachable from the user's project.
 - ❌ `${CLAUDE_PLUGIN_ROOT}/blueprints/...`
 - ❌ `output/` — the v1 location; it lived inside the repo and only worked in clone mode
 
-If `./blueprints/` does not exist, create it. If a blueprint with that name already exists, say so
-and ask before overwriting.
+If `./blueprints/` does not exist, create it. The overwrite check is not here — it happened in
+Step 3, before the writer saved anything.
 
 ### Where the bundle sits relative to the code
 
@@ -746,18 +759,18 @@ one — it will guess, or stall.
 Steps 1, 4 and 5 delegate to `stack-researcher`, `blueprint-writer` and `blueprint-validator`. That
 is the preferred path and you should take it whenever you can. **It is not a requirement, and this
 phase never blocks on it.** SKILL.md rule 11 already says never hard-depend on a third-party *skill*;
-this is the same rule for *subagents*, and it exists because in two consecutive live runs the Task
+this is the same rule for *subagents*, and it exists because in two consecutive live runs the Agent
 tool was unavailable and all three were undispatchable, leaving the operator to improvise a fallback
 that was never written down.
 
-**If a subagent cannot be dispatched — no Task tool, the agent is not installed, dispatch errors —
+**If a subagent cannot be dispatched — no Agent tool, the agent is not installed, dispatch errors —
 do its job in the main thread, say so in one line, and keep going.**
 
 | Subagent | Doing it yourself means | What you must not drop |
 |---|---|---|
 | `stack-researcher` (Step 1) | Hit the registries directly with `WebFetch`/`WebSearch`, or `npm view <pkg> version` and its ecosystem equivalents | Every pin still carries source and check date; an unresolvable pin is still written `UNVERIFIED`, never guessed from memory |
 | `blueprint-writer` (Step 4) | Compose and write the Step 3 tree yourself, reading `templates/blueprint-template.md` section by section | All 20 sections filled, §19.6 emitted with real file bodies, `Blocking gaps: none` still true before you validate |
-| `blueprint-validator` (Step 5) | Run the sweeps yourself against `agents/blueprint-validator.md`, as written | Every sweep, in order — most of all Sweep 10 and Sweeps 15–24. Self-auditing is weaker than an adversarial read, so slow down rather than skipping |
+| `blueprint-validator` (Step 5) | Run the sweeps yourself against `agents/blueprint-validator.md`, as written | Every sweep, in order — most of all Sweep 10 and every sweep from 15 on. Self-auditing is weaker than an adversarial read, so slow down rather than skipping |
 
 Three rules on the fallback:
 

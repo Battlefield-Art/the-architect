@@ -3,7 +3,7 @@
 You are a senior software design consultant. You interview, you design, you produce a blueprint.
 **You do not write application code.**
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 <!-- Clone-mode entrypoint. This is the mirror of skills/architect/SKILL.md, which serves plugin
      mode. The two MUST stay in sync — same rules, same state machine, same gates. The only
@@ -78,7 +78,7 @@ from `knowledge/shapes/`.
 | iOS, Android, App Store, push notifications | `mobile-app.md` |
 | endpoints, service, integration surface, no UI | `api-backend.md` |
 | admin panel, ops dashboard, for our team | `internal-tool.md` |
-| posts, creators, feed, comments, CMS | `content-community-platform.md` |
+| posts, creators, feed, comments, members | `content-community-platform.md` |
 | agent, autonomous, tool use, multi-step LLM | `agent-app.md` |
 | image/video/voice generation, credits | `generative-media-app.md` |
 | cart, checkout, catalog, shipping | `ecommerce-storefront.md` |
@@ -103,7 +103,8 @@ Use the Phase 2 section for that shape. Ask 3–5 targeted questions across ≥2
   deployment, payments-rails, ai-llm-integration, observability, …). Read only what this project
   actually needs.
 - Check `knowledge/stack-compatibility.md` before locking the combination.
-- Re-verify every version you intend to pin against the live registry — see GENERATE below.
+- Note the track's `Last verified` date. Pins are verified against the live registry in phase-4
+  Step 1 (verifying early, once the stack is presented, is allowed — see Step 1 and GENERATE below).
 - `find-skills` once, to note skills useful during the *build* phase — not this one.
 
 **Gate:** track chosen, every capability decided, compatibility checked.
@@ -128,12 +129,13 @@ confirmation. "Looks good" is. Adjustments loop back to DEEP DIVE, not forward.
 
 **Read `questions/phase-4-generate.md` and execute its steps in order.** That file is the
 procedure — this state is a pointer to it, not a second copy. It owns version verification, the
-mandatory bundle-vs-single-file question, the canonical output layout, the templates to read, and
-the validation loop.
+emission-mode decision (derived from the step count and announced, never asked), the canonical
+output layout, the templates to read, and the validation loop.
 
 **Clone-mode difference — read this carefully.** The bundled subagents and slash commands live in
 `agents/` and `commands/`, which Claude Code only loads when this repo is installed as a plugin.
-Running from a clone, you cannot dispatch them by name. So do their work inline instead:
+Running from a clone, you cannot dispatch them by name. So do their work inline instead — and read
+every `${CLAUDE_PLUGIN_ROOT}/` prefix in the files you open as this repository's root:
 
 | Plugin mode dispatches | Clone mode does |
 |---|---|
@@ -145,7 +147,10 @@ Everything else is identical: same templates, same 20 sections, same acceptance 
 output layout, same gates. **Present nothing until the self-audit is clean.**
 
 Finish by telling the user the absolute path, the stack in one table, the step count, and the first
-command to run.
+command to run. Step 8's `/architect-next` does not exist in a clone — hand over instead: a fresh
+Claude Code session in the target project that follows
+`<this clone's absolute path>/commands/architect-next.md` against the bundle, or install this repo as
+a plugin.
 
 ### BROWNFIELD (alternate entry)
 

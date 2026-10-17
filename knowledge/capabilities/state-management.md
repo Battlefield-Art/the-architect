@@ -3,7 +3,7 @@
 > Deciding who owns each piece of data at runtime — and, mostly, deciding you do not need a state
 > library at all.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## When a project needs this
 
@@ -154,7 +154,7 @@ not a permission. Collaborative editing with conflict resolution is a different 
 
 | Table / field | Purpose |
 |---|---|
-| `saved_view` | Persisted filter/sort sets when users ask to reuse them: owner scope, name, params blob. The URL stays the runtime source of truth; this only stores presets |
+| `saved_views` | Persisted filter/sort sets when users ask to reuse them: owner scope, name, params blob. The URL stays the runtime source of truth; this only stores presets |
 | `draft` | Autosaved form drafts: owner, entity type, entity id (nullable for new), payload, updated_at |
 | `<entity>.updated_at` | Required for conflict detection — a mutation carrying a stale timestamp is rejected instead of overwriting |
 | `presence` | Ephemeral only. Keep it in the realtime provider or a cache with TTL; never a durable table |

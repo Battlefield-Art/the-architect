@@ -3,7 +3,7 @@
 > The `CLAUDE.md` that ships **with the built project** — not The Architect's own. It is the first
 > thing the building agent reads, every session, forever.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 **Path resolution:** every bare path in this file (`knowledge/…`, `templates/…`, `questions/…`) is
 relative to the plugin root — read it as `${CLAUDE_PLUGIN_ROOT}/<path>`. The only exception is
@@ -29,8 +29,10 @@ mode** it is written as its own file, under `workspace/`:
         └── rules/<name>.md
 ```
 
-`workspace/` exists so the builder copies **one directory** into the target project root — `cp -R
-workspace/. <project-root>/` — rather than picking files out of the bundle one at a time. This
+`workspace/` exists so the builder copies **one directory** into the target project root — `rsync -a
+--ignore-existing workspace/ <project-root>/` (exits 0 either way; fallback `cp -Rn workspace/.
+<project-root>/ || true`, see the blueprint template §19) — rather than picking files out of the
+bundle one at a time. This
 template's output lands at `workspace/CLAUDE.md` in the bundle and at `<project-root>/CLAUDE.md`
 after the copy. It is never written loose at the bundle root.
 
@@ -115,6 +117,9 @@ Example: browser → `src/app/{route}/page.tsx` (server) → `src/server/{domain
 
 **Boundaries.** Cross one of these the wrong way and the build breaks:
 
+{The rows below are an example for a Next.js track. Replace them with this project's own layers and
+directories; never ship them to a Python, Go or CLI project.}
+
 | Layer | May import from | Must never |
 |---|---|---|
 | `src/app/**` (routes) | `components`, `server`, `lib` | Import `db/` directly |
@@ -135,11 +140,11 @@ Example: browser → `src/app/{route}/page.tsx` (server) → `src/server/{domain
 ## Code rules
 
 1. **One component per file. Max {N} lines.** Longer means it should be split.
-2. **Path alias `@/` → `src/`.** No `../../..` imports.
-3. **Server-first.** Components are server components by default. Add `"use client"` only for state,
-   effects, or event handlers — and push it to the leaf, never the page.
-4. **No barrel files.** Import from the source module; `index.ts` re-exports break tree-shaking and
-   create cycles.
+2. **{Import convention from the runtime track, e.g. path alias `@/` → `src/`; no `../../..` imports.}**
+3. **{Framework-specific rules from the runtime track, e.g. for Next.js: server components by default,
+   `"use client"` only for state, effects or event handlers, pushed to the leaf. Delete this rule if
+   the track has none.}**
+4. **{Module rule from the runtime track, e.g. no barrel files: import from the source module.}**
 5. **Validate at the edge.** Every route handler and server action parses its input with a schema
    before touching business logic. No unvalidated input reaches `src/server/`.
 6. **Errors return typed results**, not thrown strings. Shape: `{ ok: true, data } | { ok: false, error }`.

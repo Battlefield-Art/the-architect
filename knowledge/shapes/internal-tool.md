@@ -2,7 +2,7 @@
 
 > A CRUD-and-charts panel that a known, authenticated team uses to operate the business — never the public.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## Is this your project?
 
@@ -48,12 +48,12 @@ The business entities already exist — you are adding an operational layer on t
 
 | Entity | Notes |
 |---|---|
-| `user` | Staff account. Invited, not registered. `status` for offboarding. |
-| `role` | Named bundle of permissions (`admin`, `support`, `read_only`). Assign roles, never per-user permissions. |
-| `permission` | `resource:action` strings (`order:refund`). Checked server-side on every mutation. |
-| `audit_log` | **Non-negotiable.** `actor_id`, `action`, `resource_type`, `resource_id`, `before`, `after`, `ip`, `created_at`. Append-only, never updated or deleted. |
-| `saved_view` | A user's stored filter + column + sort combination. Cheap to add, heavily used. |
-| `export_job` | Async export: `requested_by`, `status`, `row_count`, `file_url`, `expires_at`. |
+| `users` | Staff account (schema owned by `knowledge/capabilities/auth.md`). Invited, not registered. `status` for offboarding. |
+| `roles` | Named bundle of permissions (`admin`, `support`, `read_only`). Assign roles, never per-user permissions. |
+| `permissions` | `resource:action` strings (`order:refund`). Checked server-side on every mutation. |
+| `audit_events` | **Non-negotiable.** The one audit table, defined in `knowledge/capabilities/enterprise-readiness.md`: `actor_id`, `actor_ip`, `action`, `target_type`, `target_id`, `occurred_at`, with before/after values in `metadata`. Append-only, never updated or deleted. |
+| `saved_views` | A user's stored filter + column + sort combination. Cheap to add, heavily used. |
+| `export_jobs` | Async export: `requested_by`, `status`, `row_count`, `file_url`, `expires_at`. |
 | *domain entities* | Orders, customers, tickets — existing tables. Prefer soft delete (`deleted_at`) over hard delete everywhere. |
 
 ## Directory structure

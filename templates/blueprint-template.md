@@ -4,7 +4,7 @@
 > instance with zero prior context must be able to build the whole project from the output without
 > asking a single clarifying question.
 
-Last verified: 2026-07-28
+Last verified: 2026-10-17
 
 **Path resolution:** every bare path in this file (`knowledge/…`, `templates/…`, `questions/…`) is
 relative to the plugin root — read it as `${CLAUDE_PLUGIN_ROOT}/<path>`. The only exception is
@@ -429,7 +429,8 @@ work that does not run.
 
 1. **One sitting per step.** Agent success rate drops sharply and non-linearly with task length —
    long steps are where builds fail. If a step touches more than **5 files** or carries more than **6 acceptance criteria**, or needs
-   more than one round of design thinking, split it. Those two numbers are the same ones
+   more than one round of design thinking, split it. A step carries **2–6** acceptance criteria —
+   one happy path and at least one failure path at the low end. Those two numbers are the same ones
    `templates/tasks-schema.md` enforces and `blueprint-validator` files as finding #3 — one fact,
    stated identically everywhere, per rule 10.
 2. **Every step carries all four fields:** `Do`, `Done when`, `Verify`, `Checkpoint`. A step missing
@@ -446,12 +447,15 @@ work that does not run.
    wired up*, *functions as expected*, *is complete*. If a human has to squint at a screen to
    decide, it is not a completion criterion. Convert it: what number, what row, what status code,
    what exit code, what pixel value in a snapshot?
-5. **`Verify` is literal shell.** Copy-pasteable, with the expected result in a comment. If a
-   condition cannot be verified by a command, write the test that makes it verifiable — in the same
-   step.
+5. **`Verify` is literal shell.** Copy-pasteable, with the expected result in a comment — and the
+   command's own exit status enforces that result; a comment asserts nothing. If a condition cannot
+   be verified by a command, write the test that makes it verifiable — in the same step. If a
+   property cannot be checked by a command, it is not a build gate: move it to §20.1's post-build
+   launch checklist.
 6. **A step is not done until its own verify commands pass** *and* the previous steps' still do.
-7. **Checkpoint every step:** `git tag step-NN-{slug}`. This gives a rollback target. If a step goes
-   wrong, `git reset --hard step-{N-1}` and retry — never debug forward through a broken checkpoint.
+7. **Checkpoint every step:** `git tag step-{NN}-{slug}`. This gives a rollback target. If a step goes
+   wrong, `git reset --hard step-{NN-1}-{previous-slug}` — the previous step's actual tag, e.g.
+   `step-06-checkout` — and retry; never debug forward through a broken checkpoint.
 8. **Never skip ahead.** If step 7 is blocked, stop and report. Do not start step 8 "in the
    meantime" — later steps assume earlier gates are green.
 9. **A step may never introduce a requirement that retroactively breaks an earlier step's
@@ -517,15 +521,20 @@ work that does not run.
 
     | Silently fails the gate | Correct — the line itself exits 0 |
     |---|---|
-    | `mytool --bad-flag`  `# expect: exit 2` | `mytool --bad-flag; test $? -eq 2`  `# expect: exit code 2 → this line exits 0` |
-    | `mytool query 'no-such-tag'`  `# expect: exit 1, no results` | `mytool query 'no-such-tag'; test $? -eq 1`  `# expect: exit code 1 → this line exits 0` |
-    | `grep -q FIXME out.txt`  `# expect: no match` | `! grep -q FIXME out.txt`  `# expect: no match → exits 0` |
+    | `mytool --bad-flag`  `# expect: exit 2` | `status=0; mytool --bad-flag \|\| status=$?; test "$status" -eq 2`  `# expect: exit code 2 → this line exits 0` |
+    | `mytool query 'no-such-tag'`  `# expect: exit 1, no results` | `status=0; mytool query 'no-such-tag' \|\| status=$?; test "$status" -eq 1`  `# expect: exit code 1 → this line exits 0` |
+    | `grep -q FIXME out.txt`  `# expect: no match` | `status=0; grep -q FIXME out.txt \|\| status=$?; test "$status" -eq 1`  `# expect: 1 = no match → exits 0 · 2 = grep error, and that now fails` |
     | `curl -f localhost:3000/missing`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/missing)" = 404` |
 
     **Assert the code; never let the failure escape.** The expected code stays visible in the
     command or the comment — the point is not to hide it, it is to make the *assertion* the thing
     that decides the exit status. Read every `Verify` block top to bottom before you emit it and
     confirm that a correct step leaves the block with status 0, including under `set -e`.
+    **Why not `cmd; test $? -eq N`:** under `set -e` — how unattended runners execute these blocks —
+    a non-zero `cmd` aborts the block before `test` ever runs, so write the strict form
+    `status=0; cmd || status=$?; test "$status" -eq N`, where `||` keeps `set -e` from firing and
+    `test` alone decides; and never gate with `! cmd`, whose failure `set -e` ignores, so a mid-block
+    `!` gate fails silently.
 
 12. **A check must be possible in the medium it runs in.** Before writing any `Done when` or
     `Verify`, confirm the property is *observable* by the thing doing the observing. A runtime check
@@ -626,7 +635,7 @@ work that does not run.
        | Depends on the Checkpoint | Independent restatement |
        |---|---|
        | `git ls-files --error-unmatch LICENSE` | `test -f LICENSE` — the file exists on disk |
-       | `test -z "$(git status --porcelain)"` | `! git check-ignore -q LICENSE` — nothing will swallow it at commit time |
+       | `test -z "$(git status --porcelain)"` | `status=0; git check-ignore -q LICENSE \|\| status=$?; test "$status" -eq 1` — 1 = not ignored; nothing will swallow it at commit time |
        | "the working tree is clean" | `diff -u expected/report.txt out/report.txt` — the output matches what this step promised, which is the real requirement |
        | `git show <own tag>:config.json` | `cat config.json \| jq -e '.name == "…"'` |
 
@@ -723,9 +732,9 @@ work that does not run.
 
     | Passes vacuously | Fails for the stated reason |
     |---|---|
-    | `! git check-ignore -q a b`  `# expect: non-zero` | `git check-ignore -q a; test $? -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and now that fails` |
-    | `! mytool validate config.json`  `# expect: invalid` | `mytool validate config.json; test $? -eq 1`  `# 1 = invalid · 2 = bad usage` |
-    | `mytool --bad-flag; test $? -ne 0` | `mytool --bad-flag; test $? -eq 2` |
+    | `! git check-ignore -q a b`  `# expect: non-zero` | `status=0; git check-ignore -q a \|\| status=$?; test "$status" -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and now that fails` |
+    | `! mytool validate config.json`  `# expect: invalid` | `status=0; mytool validate config.json \|\| status=$?; test "$status" -eq 1`  `# 1 = invalid · 2 = bad usage` |
+    | `mytool --bad-flag; test $? -ne 0` | `status=0; mytool --bad-flag \|\| status=$?; test "$status" -eq 2` |
     | `! curl -f "$URL/missing"`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/missing")" = 404` |
 
     **The rule:** any gate whose success condition is a **non-zero** exit must either **assert the
@@ -736,7 +745,8 @@ work that does not run.
     that assertion decide the status.
 
     **The mechanical self-check.** Grep every `Verify` block and every §20.1 line for a leading `!`,
-    for `test $? -ne`, and for any comment reading *expect: non-zero*, *expect: fails*, or *expect:
+    for `test $? -ne`, for `; test $?` (rewrite it to the strict form, rule 11), and for any comment
+    reading *expect: non-zero*, *expect: fails*, or *expect:
     error*. For each hit answer two questions: **which exit code does the property produce**, and
     **which codes does this command emit for usage errors** — arity, unknown flag, illegal flag
     combination, unreadable file. If those two sets overlap, or if you cannot name the first, it is
@@ -808,52 +818,49 @@ behaviour in the step that was going to build it anyway.}
 precision. Delete this example from the generated blueprint and replace it with the project's own
 steps — it is here so you can see the standard, not to be shipped.}
 
-#### Step 7 — Stripe checkout and subscription webhook
+#### Step 7 — Subscription webhook handler
 
 **Do**
-Wire paid signup end to end. Create:
-- `src/lib/stripe.ts` — the SDK client, reading `STRIPE_SECRET_KEY`
-- `src/app/api/checkout/route.ts` — creates a Checkout Session for the signed-in user
-- `src/app/api/webhooks/stripe/route.ts` — signature-verified webhook receiver, raw-body parsing
+Receive Stripe's subscription events and keep `subscriptions` in sync. The SDK client
+(`src/lib/stripe.ts`) and the checkout route shipped in step 6; this step is the receiving half.
+Create:
+- `src/app/api/webhooks/stripe/route.ts` — signature-verified receiver, raw-body parsing
 - `src/lib/billing/sync-subscription.ts` — the single writer to `subscriptions`
-- migration `007_subscriptions.sql` — `subscriptions` + `webhook_events` (dedupe ledger)
-- `src/app/api/webhooks/stripe/route.test.ts`
+- the migration `pnpm db:generate` emits for `subscriptions` and `webhook_events` (the dedupe ledger, unique on the Stripe event `id`) — never a hand-picked filename
+- `test/fixtures/stripe-events.json` — recorded `checkout.session.completed`, `customer.subscription.deleted` and one unhandled event type, shaped per §5
+- `src/app/api/webhooks/stripe/route.test.ts` — replays each fixture through the handler, signed in-test with `STRIPE_WEBHOOK_SECRET` from `.env.test`
 
 **Done when**
-- [ ] WHEN a POST arrives at `/api/webhooks/stripe` with an invalid `Stripe-Signature` header THE SYSTEM SHALL respond `400` and write zero rows to `subscriptions`.
-- [ ] WHEN `checkout.session.completed` is received for a known customer THE SYSTEM SHALL upsert exactly one `subscriptions` row with `status='active'` and a non-null `current_period_end`.
-- [ ] WHEN the same Stripe event `id` is delivered twice THE SYSTEM SHALL return `200` both times and leave the `subscriptions` row count unchanged.
-- [ ] WHEN `customer.subscription.deleted` is received THE SYSTEM SHALL set that row's `status='canceled'` and SHALL NOT delete the row.
-- [ ] WHEN an unhandled event type arrives THE SYSTEM SHALL return `200` and log at `info` — never a 5xx, because a non-2xx makes Stripe retry for days.
-- [ ] WHEN `STRIPE_WEBHOOK_SECRET` is unset at boot THE SYSTEM SHALL fail startup with a named error, not serve traffic that silently accepts unsigned payloads.
-- [ ] WHEN the webhook test suite runs THE SYSTEM SHALL report 6 passing tests and 0 skipped.
+- [ ] WHEN a request reaches the handler with an invalid `Stripe-Signature` header THE SYSTEM SHALL respond `400` and write zero rows to `subscriptions`.
+- [ ] WHEN the recorded `checkout.session.completed` fixture is replayed through the handler test THE SYSTEM SHALL upsert exactly one `subscriptions` row with `status='active'` and a non-null `current_period_end`.
+- [ ] WHEN the same fixture is replayed a second time with the same event `id` THE SYSTEM SHALL respond `200` both times and leave the `subscriptions` row count unchanged.
+- [ ] WHEN the recorded `customer.subscription.deleted` fixture is replayed THE SYSTEM SHALL set that row's `status='canceled'` and SHALL NOT delete the row.
+- [ ] WHEN the recorded unhandled event type is replayed THE SYSTEM SHALL respond `200` and log at `info` — never a 5xx, because a non-2xx makes Stripe retry for days.
+- [ ] WHEN `pnpm db:migrate` runs on the step-6 database THE SYSTEM SHALL exit 0 and both `subscriptions` and `webhook_events` SHALL exist.
 
 **Verify**
 ```bash
-pnpm test src/app/api/webhooks/stripe          # expect: 6 passed, 0 skipped
-pnpm typecheck                                  # expect: exit 0
-
-stripe listen --forward-to localhost:3000/api/webhooks/stripe &
-stripe trigger checkout.session.completed
-psql "$DATABASE_URL" -c \
-  "select status, count(*) from subscriptions group by status;"
-# expect: active | 1
-
-stripe trigger checkout.session.completed       # same fixture, replayed
-psql "$DATABASE_URL" -c "select count(*) from subscriptions;"
-# expect: 1  (idempotent — not 2)
-
-curl -s -o /dev/null -w '%{http_code}\n' -X POST \
-  localhost:3000/api/webhooks/stripe \
-  -H 'Stripe-Signature: t=0,v1=deadbeef' -d '{}'
-# expect: 400
+pnpm db:migrate                                   # expect: exit 0
+psql "$DATABASE_URL" -tAc "select to_regclass('public.subscriptions') is not null" | grep -qx t
+                                                  # expect: exit 0 — the table exists
+psql "$DATABASE_URL" -tAc "select to_regclass('public.webhook_events') is not null" | grep -qx t
+                                                  # expect: exit 0
+pnpm test src/app/api/webhooks/stripe             # expect: exit 0 — replays every recorded fixture; the
+                                                  #         assertions live in the test, so a wrong row fails it
+status=0; grep -rnE '\.(skip|only)\(' src/app/api/webhooks/stripe || status=$?; test "$status" -eq 1
+                                                  # expect: exit 0 — 1 = no skipped or focused test · 2 = grep error, and now that fails
+pnpm typecheck                                    # expect: exit 0
 ```
+
+Nothing here leaves the machine: the fixtures are recorded files and the signature is computed in the
+test. A live round trip through Stripe's CLI (`stripe listen` + `stripe trigger`) needs an account and
+the network, so it is not a build gate — it goes in §20.1's post-build launch checklist.
 
 **Checkpoint**
 ```bash
-git add -A && git commit -m "step 7: stripe checkout + subscription webhook"
-git tag step-07-billing
-# rollback target if step 8 goes wrong: git reset --hard step-07-billing
+git add -A && git commit -m "step 7: subscription webhook handler"
+git tag step-07-webhooks
+# rollback target if step 8 goes wrong: git reset --hard step-07-webhooks
 ```
 
 ---
@@ -893,7 +900,7 @@ and describe what must be in it.}
 **Done when**
 - [ ] WHEN {trigger} THE SYSTEM SHALL {observable response}
 - [ ] WHEN {trigger} THE SYSTEM SHALL {observable response}
-- [ ] {…3-7 conditions. Include at least one failure/edge case, not only the happy path.}
+- [ ] {…2–6 conditions (rule 1). Include at least one failure/edge case, not only the happy path.}
 
 **Verify**
 ```bash
@@ -905,7 +912,7 @@ clean check, no `git ls-files --error-unmatch` over a file this step created, no
 no lookup of this step's own tag. Assert the file on disk instead, or move the assertion below.
 
 No line here may pass on *any* non-zero exit (rule 16). If the correct outcome of a command is a
-failure, assert the specific code — `{cmd}; test $? -eq {N}` — so a usage error (wrong arity, unknown
+failure, assert the specific code — `status=0; {cmd} || status=$?; test "$status" -eq {N}` — so a usage error (wrong arity, unknown
 flag, bad combination) fails the gate instead of satisfying it. A bare `!` or `test $? -ne 0` is not
 a gate.
 
@@ -1509,7 +1516,26 @@ remaining §9 `Verify` command — migrations, seeds, the service up/down comman
 CLIs, `curl` to localhost — and replace the placeholder deny row with this stack's real destructive
 commands. **Emit valid JSON: every array element is a permission string. A sentence of prose inside
 the array is not a comment, it is a rule that silently never matches** — unlike a half-filled prose
-section, a half-substituted JSON file fails invisibly at runtime.}
+section, a half-substituted JSON file fails invisibly at runtime.
+
+**A rule matches each subcommand independently.** Claude Code splits a command on `&&`, `||`, `;`,
+`|`, `|&`, `&` and newlines, and checks command substitutions `$( … )` too, so an entry covering the
+first word of `pnpm db:migrate && psql … | grep -qx t` approves none of the rest. Split every `Verify`
+line and every §20.1 line on those operators and inside `$( )`; **each subcommand needs its own
+`allow` entry unless it is a built-in read-only command** (`ls`, `cat`, `grep`, `wc`, `diff`,
+read-only `git` — see the permissions docs for the exact set). `test`/`[` is not in that documented
+set, so the strict expected-failure form `status=0; cmd || status=$?; test "$status" -eq N` needs
+`cmd`'s entry plus the `Bash(test:*)` entry below; the bare assignments are not commands.
+
+**Allow each exact `Verify` command, never a capability.** No bare interpreter (`Bash(node:*)`,
+`Bash(python:*)`), no network tool (`Bash(curl:*)` — scope it to the localhost command the gate runs),
+no package runner wildcard (`Bash(npx:*)`, `Bash(pnpm dlx:*)`), no `Bash(sh -c:*)` / `Bash(bash -c:*)`.
+Each of those approves arbitrary code under a harmless-looking name.
+
+**Deny rules discourage; they do not enforce.** `Read(./.env)` also covers the file commands Claude
+Code recognises in Bash (`cat`, `head`, `tail`, `sed`), but not a script that opens the file itself,
+and a `Bash(…)` deny does not match the same program by absolute path or inside `sh -c`. Real
+isolation is the sandbox; say so in §14 if this project's secrets need more than discouragement.}
 
 ```json
 {
@@ -1520,6 +1546,7 @@ section, a half-substituted JSON file fails invisibly at runtime.}
       "Bash({pm} lint:*)",
       "Bash({pm} build)",
       "Bash({pm} dev:*)",
+      "Bash(test:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -1941,7 +1968,7 @@ every epic states for the same fact. A gate that greps for a number the blueprin
 fails on every machine.
 
 **Every line above exits 0 on a correct build** — §9 rule 11. This gate is read by a runner, so a
-check whose correct outcome is a non-zero exit is wrapped in an assertion (`{cmd}; test $? -eq 2`)
+check whose correct outcome is a non-zero exit is wrapped in an assertion (`status=0; {cmd} || status=$?; test "$status" -eq 2`)
 rather than written bare; the expected code stays in the comment. And every line is decidable in the
 medium it runs in — §9 rule 12. A gate command that cannot pass, or cannot fail, is not a gate.
 
@@ -1949,10 +1976,10 @@ medium it runs in — §9 rule 12. A gate command that cannot pass, or cannot fa
 in the manual list below, may treat *"exits non-zero"* as a pass condition: a usage error — wrong
 arity, an unknown flag, an illegal flag combination — exits non-zero too, and a gate written that way
 passes vacuously and would keep passing after the property it checks broke. Assert the **specific**
-code (`{cmd}; test $? -eq 1`), or restructure the check so success is exit 0. `!` and `test $? -ne 0`
+code (`status=0; {cmd} || status=$?; test "$status" -eq 1`), or restructure the check so success is exit 0. `!` and `test $? -ne 0`
 accept every failure equally, including the ones that mean the command was malformed.
 
-Plus these manual gates, each checked once before launch:
+Plus these manual gates — the post-build launch checklist — each checked once before launch:
 
 - [ ] Every step in §9 has its checkpoint tag in git (`git tag -l 'step-*'` lists one per step).
       The repository these tags live in is created by §10's Bootstrap block, not by a scaffolder.
@@ -1963,10 +1990,12 @@ Plus these manual gates, each checked once before launch:
       after every step has committed, so it can decide what no step's own `Verify` can. A per-step
       version of the same check belongs in that step's `Checkpoint` block, after the commit — never
       in its `Verify`. **Write the not-ignored companion check per path and assert the code** —
-      `git check-ignore -q <path>; test $? -eq 1` for each, never `! git check-ignore -q <a> <b>`,
+      `status=0; git check-ignore -q <path> || status=$?; test "$status" -eq 1` for each, never `! git check-ignore -q <a> <b>`,
       which exits 128 for usage and passes whatever the ignore file says (§9 rule 16).
-- [ ] The ignore file was in place before the first commit: `git log --diff-filter=A --format=%H`
-      shows it added in §10's Bootstrap commit, not in a §9 step's commit. Once a path is tracked, no
+- [ ] The ignore file was in place before the first commit:
+      `test "$(git log --diff-filter=A --format=%H -- .gitignore | tail -n 1)" = "$(git rev-list --max-parents=0 HEAD)"`
+      exits 0 — the commit that first added it is the root commit §10's Bootstrap creates, not a §9
+      step's commit. Once a path is tracked, no
       ignore rule ever excludes it — see §10, *The ignore file precedes the first commit*.
 - [ ] Every row of §19.6's *Byte-exact artifact reconciliation* table reads `Both confirmed: yes` —
       each golden file, fixture and snapshot baseline was read against the blueprint rules that
@@ -1984,6 +2013,8 @@ Plus these manual gates, each checked once before launch:
 - [ ] Every non-goal in §1 is still un-built.
 - [ ] Every environment variable in §10 is set in production and absent from the repo.
 - [ ] The critical E2E flows in §13 pass against the production URL.
+- [ ] Every property a §9 step could not check by a command is checked here, by name — e.g. a live
+      provider round trip (`stripe listen` + `stripe trigger`) that needs an account and the network.
 - [ ] Keyboard-only pass and one screen-reader pass over the primary flow (§15).
 - [ ] Error tracking receives a deliberately triggered test error (§16).
 - [ ] A rollback has been performed once, on purpose, in a preview environment (§12).

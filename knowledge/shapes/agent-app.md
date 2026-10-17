@@ -2,7 +2,7 @@
 
 > An application where the model *is* the product — chat, copilot, or autonomous worker — built by teams whose core loop is prompt → tool → trace → eval, not CRUD.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## Is this your project?
 
@@ -50,6 +50,7 @@ Alternatives: `knowledge/runtime-tracks/python.md` when the team is Python-nativ
 | Credit metering | Marginal cost per request is real and must be capped | `knowledge/capabilities/credit-metering.md` |
 | Testing | Prompts are code; evals are their test suite | `knowledge/capabilities/testing.md` |
 | Deployment | Long responses and background workers break naive hosting | `knowledge/capabilities/deployment.md` |
+| Realtime voice *(voice variant)* | Spoken turns put a latency budget on every hop — transport, turn detection, interruption | `knowledge/capabilities/realtime-voice.md` |
 | Payments, enterprise readiness *(later)* | Selling credits; buyers asking about retention and model training | `knowledge/capabilities/payments-rails.md`, `knowledge/capabilities/enterprise-readiness.md` |
 
 ## Data model
