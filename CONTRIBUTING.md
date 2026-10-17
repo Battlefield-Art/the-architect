@@ -376,7 +376,7 @@ condition a script could evaluate today, on this machine, without leaving it.
 
 | Not acceptable | Acceptable |
 |---|---|
-| "billing works" | `pnpm test src/api/webhooks` passes, and a `subscriptions` row appears after `stripe trigger checkout.session.completed` |
+| "billing works" | `pnpm test src/api/webhooks` exits 0 after replaying the recorded `checkout.session.completed` fixture, and the test asserts exactly one `subscriptions` row |
 | "the store accepts the submission" | the packaging command produces a store-ready artifact and every required manifest field is non-empty |
 | "no clipped or overlapping text" | a snapshot test reports no text-node truncation at min and max type scale |
 | "a reviewer confirms it looks right" | a test asserts real command output byte-matches the documented example |

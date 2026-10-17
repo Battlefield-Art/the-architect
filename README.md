@@ -120,43 +120,38 @@ A blueprint with **20 fixed sections**. Section 9, the build order, is what the 
 Here's one real step, abridged from the worked example in [`templates/blueprint-template.md`](templates/blueprint-template.md):
 
 ````markdown
-#### Step 7 — Stripe checkout and subscription webhook
+#### Step 7 — Subscription webhook handler
 
 **Do**
-Wire paid signup end to end. Create:
-- `src/lib/stripe.ts` — the SDK client, reading `STRIPE_SECRET_KEY`
-- `src/app/api/checkout/route.ts` — creates a Checkout Session for the signed-in user
+Receive Stripe's subscription events and keep `subscriptions` in sync (the checkout route shipped in step 6). Create:
 - `src/app/api/webhooks/stripe/route.ts` — signature-verified receiver, raw-body parsing
 - `src/lib/billing/sync-subscription.ts` — the single writer to `subscriptions`
-- migration `007_subscriptions.sql` — `subscriptions` + `webhook_events` (dedupe ledger)
+- the migration `pnpm db:generate` emits for `subscriptions` + `webhook_events` (dedupe ledger)
+- `test/fixtures/stripe-events.json` and `route.test.ts` — recorded events, replayed and signed in-test
 
 **Done when**
-- [ ] WHEN a POST arrives at `/api/webhooks/stripe` with an invalid `Stripe-Signature` header THE SYSTEM SHALL respond `400` and write zero rows to `subscriptions`.
-- [ ] WHEN `checkout.session.completed` is received for a known customer THE SYSTEM SHALL upsert exactly one `subscriptions` row with `status='active'` and a non-null `current_period_end`.
-- [ ] WHEN the same Stripe event `id` is delivered twice THE SYSTEM SHALL return `200` both times and leave the `subscriptions` row count unchanged.
-- [ ] WHEN `STRIPE_WEBHOOK_SECRET` is unset at boot THE SYSTEM SHALL fail startup with a named error, not serve traffic that silently accepts unsigned payloads.
+- [ ] WHEN a request reaches the handler with an invalid `Stripe-Signature` header THE SYSTEM SHALL respond `400` and write zero rows to `subscriptions`.
+- [ ] WHEN the recorded `checkout.session.completed` fixture is replayed THE SYSTEM SHALL upsert exactly one `subscriptions` row with `status='active'` and a non-null `current_period_end`.
+- [ ] WHEN the same event `id` is replayed a second time THE SYSTEM SHALL respond `200` both times and leave the `subscriptions` row count unchanged.
+- [ ] WHEN an unhandled event type is replayed THE SYSTEM SHALL respond `200` and log at `info` — never a 5xx, which makes Stripe retry for days.
 
 **Verify**
 ```bash
-pnpm test src/app/api/webhooks/stripe          # expect: 6 passed, 0 skipped
-pnpm typecheck                                  # expect: exit 0
-
-stripe listen --forward-to localhost:3000/api/webhooks/stripe &
-stripe trigger checkout.session.completed
-psql "$DATABASE_URL" -c \
-  "select status, count(*) from subscriptions group by status;"
-# expect: active | 1
-
-stripe trigger checkout.session.completed       # same fixture, replayed
-psql "$DATABASE_URL" -c "select count(*) from subscriptions;"
-# expect: 1  (idempotent — not 2)
+pnpm db:migrate                                   # expect: exit 0
+pnpm test src/app/api/webhooks/stripe             # expect: exit 0 — the assertions live in the test
+status=0; grep -rnE '\.(skip|only)\(' src/app/api/webhooks/stripe || status=$?
+test "$status" -eq 1                              # 1 = no skipped/focused test · 2 = grep error, which now fails
+pnpm typecheck                                    # expect: exit 0
 ```
+
+Nothing here leaves the machine. The live `stripe listen` + `stripe trigger` round trip needs an
+account and the network, so it is on the post-build launch checklist, not a build gate.
 
 **Checkpoint**
 ```bash
-git add -A && git commit -m "step 7: stripe checkout + subscription webhook"
-git tag step-07-billing
-# rollback target if step 8 goes wrong: git reset --hard step-07-billing
+git add -A && git commit -m "step 7: subscription webhook handler"
+git tag step-07-webhooks
+# rollback target if step 8 goes wrong: git reset --hard step-07-webhooks
 ```
 ````
 
@@ -502,43 +497,38 @@ Un blueprint con **20 secciones fijas**. La Sección 9, el orden de construcció
 Aquí un paso real, abreviado del ejemplo trabajado en [`templates/blueprint-template.md`](templates/blueprint-template.md):
 
 ````markdown
-#### Step 7 — Stripe checkout and subscription webhook
+#### Step 7 — Subscription webhook handler
 
 **Do**
-Wire paid signup end to end. Create:
-- `src/lib/stripe.ts` — the SDK client, reading `STRIPE_SECRET_KEY`
-- `src/app/api/checkout/route.ts` — creates a Checkout Session for the signed-in user
+Receive Stripe's subscription events and keep `subscriptions` in sync (the checkout route shipped in step 6). Create:
 - `src/app/api/webhooks/stripe/route.ts` — signature-verified receiver, raw-body parsing
 - `src/lib/billing/sync-subscription.ts` — the single writer to `subscriptions`
-- migration `007_subscriptions.sql` — `subscriptions` + `webhook_events` (dedupe ledger)
+- the migration `pnpm db:generate` emits for `subscriptions` + `webhook_events` (dedupe ledger)
+- `test/fixtures/stripe-events.json` and `route.test.ts` — recorded events, replayed and signed in-test
 
 **Done when**
-- [ ] WHEN a POST arrives at `/api/webhooks/stripe` with an invalid `Stripe-Signature` header THE SYSTEM SHALL respond `400` and write zero rows to `subscriptions`.
-- [ ] WHEN `checkout.session.completed` is received for a known customer THE SYSTEM SHALL upsert exactly one `subscriptions` row with `status='active'` and a non-null `current_period_end`.
-- [ ] WHEN the same Stripe event `id` is delivered twice THE SYSTEM SHALL return `200` both times and leave the `subscriptions` row count unchanged.
-- [ ] WHEN `STRIPE_WEBHOOK_SECRET` is unset at boot THE SYSTEM SHALL fail startup with a named error, not serve traffic that silently accepts unsigned payloads.
+- [ ] WHEN a request reaches the handler with an invalid `Stripe-Signature` header THE SYSTEM SHALL respond `400` and write zero rows to `subscriptions`.
+- [ ] WHEN the recorded `checkout.session.completed` fixture is replayed THE SYSTEM SHALL upsert exactly one `subscriptions` row with `status='active'` and a non-null `current_period_end`.
+- [ ] WHEN the same event `id` is replayed a second time THE SYSTEM SHALL respond `200` both times and leave the `subscriptions` row count unchanged.
+- [ ] WHEN an unhandled event type is replayed THE SYSTEM SHALL respond `200` and log at `info` — never a 5xx, which makes Stripe retry for days.
 
 **Verify**
 ```bash
-pnpm test src/app/api/webhooks/stripe          # expect: 6 passed, 0 skipped
-pnpm typecheck                                  # expect: exit 0
-
-stripe listen --forward-to localhost:3000/api/webhooks/stripe &
-stripe trigger checkout.session.completed
-psql "$DATABASE_URL" -c \
-  "select status, count(*) from subscriptions group by status;"
-# expect: active | 1
-
-stripe trigger checkout.session.completed       # same fixture, replayed
-psql "$DATABASE_URL" -c "select count(*) from subscriptions;"
-# expect: 1  (idempotent — not 2)
+pnpm db:migrate                                   # expect: exit 0
+pnpm test src/app/api/webhooks/stripe             # expect: exit 0 — the assertions live in the test
+status=0; grep -rnE '\.(skip|only)\(' src/app/api/webhooks/stripe || status=$?
+test "$status" -eq 1                              # 1 = no skipped/focused test · 2 = grep error, which now fails
+pnpm typecheck                                    # expect: exit 0
 ```
+
+Nothing here leaves the machine. The live `stripe listen` + `stripe trigger` round trip needs an
+account and the network, so it is on the post-build launch checklist, not a build gate.
 
 **Checkpoint**
 ```bash
-git add -A && git commit -m "step 7: stripe checkout + subscription webhook"
-git tag step-07-billing
-# rollback target if step 8 goes wrong: git reset --hard step-07-billing
+git add -A && git commit -m "step 7: subscription webhook handler"
+git tag step-07-webhooks
+# rollback target if step 8 goes wrong: git reset --hard step-07-webhooks
 ```
 ````
 
