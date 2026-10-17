@@ -440,9 +440,9 @@ that block, forever, on every machine.
 
 | Silently fails the gate | Correct — the line itself exits 0 |
 |---|---|
-| `mytool --bad-flag`  `# expect: exit 2` | `mytool --bad-flag; test $? -eq 2`  `# expect: exit code 2 → this line exits 0` |
-| `mytool query 'no-such-tag'`  `# expect: exit 1` | `mytool query 'no-such-tag'; test $? -eq 1`  `# expect: exit code 1 → this line exits 0` |
-| `grep -q FIXME out.txt`  `# expect: no match` | `! grep -q FIXME out.txt`  `# expect: no match → exits 0` |
+| `mytool --bad-flag`  `# expect: exit 2` | `status=0; mytool --bad-flag || status=$?; test "$status" -eq 2`  `# expect: exit code 2 → this line exits 0` |
+| `mytool query 'no-such-tag'`  `# expect: exit 1` | `status=0; mytool query 'no-such-tag' || status=$?; test "$status" -eq 1`  `# expect: exit code 1 → this line exits 0` |
+| `grep -q FIXME out.txt`  `# expect: no match` | `status=0; grep -q FIXME out.txt || status=$?; test "$status" -eq 1`  `# expect: 1 = no match → exits 0 · 2 = grep error, and that now fails` |
 | `curl -f localhost:3000/missing`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/missing)" = 404` |
 
 **Assert the code; never let the failure escape.** Keep the expected code visible — the point is not
@@ -451,7 +451,11 @@ to hide it, it is to make the assertion decide the status.
 **The self-check:** read every `Verify` block and every §20.1 line top to bottom and ask, for a
 *correct* step, what status the block exits with. Any command whose success case is a non-zero exit
 must be wrapped. Do it under the assumption of `set -e` too: a bare failing command aborts the block
-before the rest of the gate runs. This is a small rule and it silently breaks automated builds.
+before the rest of the gate runs. **Why not `cmd; test $? -eq N`:** under `set -e` — how unattended
+runners execute these blocks — a non-zero `cmd` aborts the block before `test` ever runs, so write
+the strict form `status=0; cmd || status=$?; test "$status" -eq N`, where `||` keeps `set -e` from
+firing and `test` alone decides; and never gate with `! cmd`, whose failure `set -e` ignores, so a
+mid-block `!` gate fails silently. This is a small rule and it silently breaks automated builds.
 
 ### A gate must fail for the right reason
 
@@ -474,9 +478,9 @@ failed.
 
 | Passes vacuously | Fails for the stated reason |
 |---|---|
-| `! git check-ignore -q a b`  `# expect: non-zero` | `git check-ignore -q a; test $? -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and that now fails` |
-| `! mytool validate config.json` | `mytool validate config.json; test $? -eq 1`  `# 1 = invalid · 2 = bad usage` |
-| `mytool --bad-flag; test $? -ne 0` | `mytool --bad-flag; test $? -eq 2` |
+| `! git check-ignore -q a b`  `# expect: non-zero` | `status=0; git check-ignore -q a || status=$?; test "$status" -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and that now fails` |
+| `! mytool validate config.json` | `status=0; mytool validate config.json || status=$?; test "$status" -eq 1`  `# 1 = invalid · 2 = bad usage` |
+| `mytool --bad-flag; test $? -ne 0` | `status=0; mytool --bad-flag || status=$?; test "$status" -eq 2` |
 | `! curl -f "$URL/missing"` | `test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/missing")" = 404` |
 
 **So: any gate whose success condition is a non-zero exit must distinguish the expected failure code
@@ -490,7 +494,8 @@ mean what they claim. A blueprint can satisfy the first perfectly and still ship
 nothing.
 
 **The self-check:** grep everything you wrote — §9 `Verify` blocks, `tasks.json` `verify` arrays,
-epic Verify blocks, §20.1's list — for a leading `!`, for `test $? -ne`, and for any comment reading
+epic Verify blocks, §20.1's list — for a leading `!`, for `test $? -ne`, for `; test $?` (rewrite it
+to the strict form above), and for any comment reading
 *expect: non-zero*, *expect: fails*, or *expect: error*. For each hit, answer two questions in one
 line each: **which exit code does the property produce**, and **which codes does this command emit
 for usage errors**. If the sets overlap, or you cannot name the first, rewrite the check. Then read
@@ -917,8 +922,9 @@ post-condition of a later phase of the same step.** The family to watch for:
 
 2. **Restate the gate so it does not depend on commit state.** Assert the file **exists on disk**
    rather than that git tracks it (`test -f LICENSE`); assert the **diff against the step's own
-   expected output** is empty rather than that the tree is clean; assert `! git check-ignore -q
-   <path>` rather than that the path is already indexed.
+   expected output** is empty rather than that the tree is clean; assert `git check-ignore -q
+   <path>` exits 1 (`status=0; git check-ignore -q <path> || status=$?; test "$status" -eq 1`)
+   rather than that the path is already indexed.
 
 **A third move is not legal: telling the builder to commit early.** The step template orders the
 Checkpoint last on purpose, so the tag points at a state the gate already verified. Do not write
@@ -1284,7 +1290,8 @@ uses `rsync --ignore-existing` because `cp -Rn` exits 1 on BSD/macOS when it ski
 reconciliation: 2 golden files, each read against the §4 rules that constrain it (paths relative to
 the run root — no parent prefix) and against the pinned runtime; 1 runtime literal I could not
 execute, named under UNVERIFIED LITERALS below · gate failure attribution: 3 gates whose success is a
-non-zero exit, each asserting the specific code, 0 bare `!`/`test $? -ne 0`, and every command's arity
+non-zero exit, each asserting the specific code in the `status=0; cmd || status=$?` form, 0 bare
+`!`/`test $? -ne 0`/`cmd; test $?`, and every command's arity
 checked against its docs · governing-file ordering: `.gitignore` with its 3 exception lines is
 written in §10's Bootstrap above the first commit; no §9 step creates it
 
@@ -1423,7 +1430,8 @@ Resolve these in the main thread and re-invoke.
 27. **Every `Verify` command exits 0 when the step is correct.** A runner reads only the exit status
     and cannot tell "the tool errored" from "the tool correctly errored". Gating a documented error
     path is right; writing it bare (`tool --bad-flag  # expect: exit 2`) is a permanently failing
-    gate. Wrap it so the line itself exits 0 — `tool --bad-flag; test $? -eq 2` — and keep the
+    gate. Wrap it so the line itself exits 0 — `status=0; tool --bad-flag || status=$?; test "$status" -eq 2`
+    (not `tool --bad-flag; test $? -eq 2`, which `set -e` aborts before `test` runs) — and keep the
     expected code visible. Same rule for §20.1.
 28. **Every check must be possible in the medium it runs in.** *(Enforced by validator finding
     #39.)* Confirm the property is observable by
@@ -1506,7 +1514,7 @@ Resolve these in the main thread and re-invoke.
     pathnames on a flag that takes one, exiting **128** for usage rather than **1** for the property —
     green, and green even if the files *were* ignored. Any gate whose success condition is a non-zero
     exit must **distinguish the expected failure code from a usage error**, or be restructured so
-    success is exit 0. Prefer asserting the specific code (`cmd; test $? -eq 1`); `!` and
+    success is exit 0. Prefer asserting the specific code (`status=0; cmd || status=$?; test "$status" -eq 1`); `!` and
     `test $? -ne 0` accept every failure equally and are not gates. This compounds with rule 27: that
     one made correct steps exit 0, this one makes failures mean what they claim.
 38. **The ignore file precedes the first commit.** *(Enforced by validator finding #37.)* §10's

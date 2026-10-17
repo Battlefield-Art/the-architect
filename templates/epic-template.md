@@ -250,7 +250,8 @@ correct; the last one exiting 0 is what makes the task done.
 ```
 
 These lines are this task's `verify` **array** in `tasks.json`, one per line, **copied with any
-exit-code wrapping intact** — `{cmd}; test $? -eq {n}`, `! grep -q …`. Do not unwrap them into the
+exit-code wrapping intact** — `status=0; {cmd} || status=$?; test "$status" -eq {n}`, which survives
+`set -e` (`{cmd}; test $? -eq {n}` does not, and `! cmd` is not a gate). Do not unwrap them into the
 "cleaner" bare command: a line whose success case is a non-zero exit is a permanently red gate. If
 the array has three commands, three lines appear here — a task is not done until the last one passes.
 

@@ -521,15 +521,20 @@ work that does not run.
 
     | Silently fails the gate | Correct — the line itself exits 0 |
     |---|---|
-    | `mytool --bad-flag`  `# expect: exit 2` | `mytool --bad-flag; test $? -eq 2`  `# expect: exit code 2 → this line exits 0` |
-    | `mytool query 'no-such-tag'`  `# expect: exit 1, no results` | `mytool query 'no-such-tag'; test $? -eq 1`  `# expect: exit code 1 → this line exits 0` |
-    | `grep -q FIXME out.txt`  `# expect: no match` | `! grep -q FIXME out.txt`  `# expect: no match → exits 0` |
+    | `mytool --bad-flag`  `# expect: exit 2` | `status=0; mytool --bad-flag || status=$?; test "$status" -eq 2`  `# expect: exit code 2 → this line exits 0` |
+    | `mytool query 'no-such-tag'`  `# expect: exit 1, no results` | `status=0; mytool query 'no-such-tag' || status=$?; test "$status" -eq 1`  `# expect: exit code 1 → this line exits 0` |
+    | `grep -q FIXME out.txt`  `# expect: no match` | `status=0; grep -q FIXME out.txt || status=$?; test "$status" -eq 1`  `# expect: 1 = no match → exits 0 · 2 = grep error, and that now fails` |
     | `curl -f localhost:3000/missing`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/missing)" = 404` |
 
     **Assert the code; never let the failure escape.** The expected code stays visible in the
     command or the comment — the point is not to hide it, it is to make the *assertion* the thing
     that decides the exit status. Read every `Verify` block top to bottom before you emit it and
     confirm that a correct step leaves the block with status 0, including under `set -e`.
+    **Why not `cmd; test $? -eq N`:** under `set -e` — how unattended runners execute these blocks —
+    a non-zero `cmd` aborts the block before `test` ever runs, so write the strict form
+    `status=0; cmd || status=$?; test "$status" -eq N`, where `||` keeps `set -e` from firing and
+    `test` alone decides; and never gate with `! cmd`, whose failure `set -e` ignores, so a mid-block
+    `!` gate fails silently.
 
 12. **A check must be possible in the medium it runs in.** Before writing any `Done when` or
     `Verify`, confirm the property is *observable* by the thing doing the observing. A runtime check
@@ -630,7 +635,7 @@ work that does not run.
        | Depends on the Checkpoint | Independent restatement |
        |---|---|
        | `git ls-files --error-unmatch LICENSE` | `test -f LICENSE` — the file exists on disk |
-       | `test -z "$(git status --porcelain)"` | `! git check-ignore -q LICENSE` — nothing will swallow it at commit time |
+       | `test -z "$(git status --porcelain)"` | `status=0; git check-ignore -q LICENSE || status=$?; test "$status" -eq 1` — 1 = not ignored; nothing will swallow it at commit time |
        | "the working tree is clean" | `diff -u expected/report.txt out/report.txt` — the output matches what this step promised, which is the real requirement |
        | `git show <own tag>:config.json` | `cat config.json \| jq -e '.name == "…"'` |
 
@@ -727,9 +732,9 @@ work that does not run.
 
     | Passes vacuously | Fails for the stated reason |
     |---|---|
-    | `! git check-ignore -q a b`  `# expect: non-zero` | `git check-ignore -q a; test $? -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and now that fails` |
-    | `! mytool validate config.json`  `# expect: invalid` | `mytool validate config.json; test $? -eq 1`  `# 1 = invalid · 2 = bad usage` |
-    | `mytool --bad-flag; test $? -ne 0` | `mytool --bad-flag; test $? -eq 2` |
+    | `! git check-ignore -q a b`  `# expect: non-zero` | `status=0; git check-ignore -q a || status=$?; test "$status" -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and now that fails` |
+    | `! mytool validate config.json`  `# expect: invalid` | `status=0; mytool validate config.json || status=$?; test "$status" -eq 1`  `# 1 = invalid · 2 = bad usage` |
+    | `mytool --bad-flag; test $? -ne 0` | `status=0; mytool --bad-flag || status=$?; test "$status" -eq 2` |
     | `! curl -f "$URL/missing"`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/missing")" = 404` |
 
     **The rule:** any gate whose success condition is a **non-zero** exit must either **assert the
@@ -740,7 +745,8 @@ work that does not run.
     that assertion decide the status.
 
     **The mechanical self-check.** Grep every `Verify` block and every §20.1 line for a leading `!`,
-    for `test $? -ne`, and for any comment reading *expect: non-zero*, *expect: fails*, or *expect:
+    for `test $? -ne`, for `; test $?` (rewrite it to the strict form, rule 11), and for any comment
+    reading *expect: non-zero*, *expect: fails*, or *expect:
     error*. For each hit answer two questions: **which exit code does the property produce**, and
     **which codes does this command emit for usage errors** — arity, unknown flag, illegal flag
     combination, unreadable file. If those two sets overlap, or if you cannot name the first, it is
@@ -841,7 +847,7 @@ psql "$DATABASE_URL" -tAc "select to_regclass('public.webhook_events') is not nu
                                                   # expect: exit 0
 pnpm test src/app/api/webhooks/stripe             # expect: exit 0 — replays every recorded fixture; the
                                                   #         assertions live in the test, so a wrong row fails it
-grep -rnE '\.(skip|only)\(' src/app/api/webhooks/stripe; test $? -eq 1
+status=0; grep -rnE '\.(skip|only)\(' src/app/api/webhooks/stripe || status=$?; test "$status" -eq 1
                                                   # expect: exit 0 — 1 = no skipped or focused test · 2 = grep error, and now that fails
 pnpm typecheck                                    # expect: exit 0
 ```
@@ -906,7 +912,7 @@ clean check, no `git ls-files --error-unmatch` over a file this step created, no
 no lookup of this step's own tag. Assert the file on disk instead, or move the assertion below.
 
 No line here may pass on *any* non-zero exit (rule 16). If the correct outcome of a command is a
-failure, assert the specific code — `{cmd}; test $? -eq {N}` — so a usage error (wrong arity, unknown
+failure, assert the specific code — `status=0; {cmd} || status=$?; test "$status" -eq {N}` — so a usage error (wrong arity, unknown
 flag, bad combination) fails the gate instead of satisfying it. A bare `!` or `test $? -ne 0` is not
 a gate.
 
@@ -1959,7 +1965,7 @@ every epic states for the same fact. A gate that greps for a number the blueprin
 fails on every machine.
 
 **Every line above exits 0 on a correct build** — §9 rule 11. This gate is read by a runner, so a
-check whose correct outcome is a non-zero exit is wrapped in an assertion (`{cmd}; test $? -eq 2`)
+check whose correct outcome is a non-zero exit is wrapped in an assertion (`status=0; {cmd} || status=$?; test "$status" -eq 2`)
 rather than written bare; the expected code stays in the comment. And every line is decidable in the
 medium it runs in — §9 rule 12. A gate command that cannot pass, or cannot fail, is not a gate.
 
@@ -1967,7 +1973,7 @@ medium it runs in — §9 rule 12. A gate command that cannot pass, or cannot fa
 in the manual list below, may treat *"exits non-zero"* as a pass condition: a usage error — wrong
 arity, an unknown flag, an illegal flag combination — exits non-zero too, and a gate written that way
 passes vacuously and would keep passing after the property it checks broke. Assert the **specific**
-code (`{cmd}; test $? -eq 1`), or restructure the check so success is exit 0. `!` and `test $? -ne 0`
+code (`status=0; {cmd} || status=$?; test "$status" -eq 1`), or restructure the check so success is exit 0. `!` and `test $? -ne 0`
 accept every failure equally, including the ones that mean the command was malformed.
 
 Plus these manual gates — the post-build launch checklist — each checked once before launch:
@@ -1981,7 +1987,7 @@ Plus these manual gates — the post-build launch checklist — each checked onc
       after every step has committed, so it can decide what no step's own `Verify` can. A per-step
       version of the same check belongs in that step's `Checkpoint` block, after the commit — never
       in its `Verify`. **Write the not-ignored companion check per path and assert the code** —
-      `git check-ignore -q <path>; test $? -eq 1` for each, never `! git check-ignore -q <a> <b>`,
+      `status=0; git check-ignore -q <path> || status=$?; test "$status" -eq 1` for each, never `! git check-ignore -q <a> <b>`,
       which exits 128 for usage and passes whatever the ignore file says (§9 rule 16).
 - [ ] The ignore file was in place before the first commit:
       `test "$(git log --diff-filter=A --format=%H -- .gitignore | tail -n 1)" = "$(git rev-list --max-parents=0 HEAD)"`

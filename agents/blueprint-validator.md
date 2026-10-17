@@ -84,7 +84,7 @@ There is no "PASS with reservations". There is no partial credit.
 | 33 | A **guard that exits non-zero on the path it guards against** — a command added for idempotence or re-runnability whose no-op path returns non-zero, so the second run aborts under `set -e`. Also: a §20.1 re-run gate that asks only that the re-run "changed nothing" and never that it **exited 0** | BLOCKER |
 | 34 | A **`Verify` that depends on state its own `Checkpoint` produces** — a step gate asserting a clean working tree, a tracked file, a committed change or an existing tag over paths that same step writes. Every step template orders Do → Done when → **Verify** → **Checkpoint**, so the commit has not happened when the gate runs and the assertion cannot be true | BLOCKER |
 | 35 | A **byte-exact artifact that contradicts the blueprint or its runtime** — a golden file, an expected-output block or a fixture whose literal bytes the blueprint dictates, containing **(a)** a value that violates a §4/§5 definition the same blueprint states (a path prefix against a field defined as relative to the run root is the canonical shape), or **(b)** a message the **runtime** emits rather than the project's own code — a parser error, a stack trace, a library or tool string — with no statement that it was captured from the pinned version | BLOCKER |
-| 36 | A **gate that passes vacuously** — a check whose success condition is a non-zero exit (or a non-empty/non-match result) without pinning the *expected* code or text, so a usage error, a wrong arity, an unknown flag or a missing file satisfies it without the guarded property ever being tested | MAJOR — BLOCKER when it is the only check of that property |
+| 36 | A **gate that passes vacuously** — a check whose success condition is a non-zero exit (or a non-empty/non-match result) without pinning the *expected* code or text, so a usage error, a wrong arity, an unknown flag or a missing file satisfies it without the guarded property ever being tested. Also: an expected-failure gate written `cmd; test $? -eq N` or `! cmd` instead of the strict `status=0; cmd \|\| status=$?; test "$status" -eq N` — under `set -e` the first aborts before `test` runs and the second's failure is ignored | MAJOR — BLOCKER when it is the only check of that property |
 | 37 | An **ignore file or governing config delivered after the command it governs** — in §10's Bootstrap or the §9 step order, a file whose purpose is to change what a later command sees (`.gitignore`, `.dockerignore`, a lint/format ignore, a tool config a gate reads) written *after* that command has already run | MAJOR — BLOCKER when the effect is irreversible, as tracking is |
 | 38 | A **resolution convention with no reconciliation** — the blueprint states an import, include or link convention (specifier or extension form, path alias, export condition, link mode) and §19.6's *Resolution convention matrix* is missing, `NOT APPLICABLE`, short a row for a context that loads project modules (app, tests, standalone scripts, build, any other loader), or names a config setting the emitted file does not contain | BLOCKER |
 | 39 | A **check the medium cannot observe** — a `Done when` or `Verify` asserting a property invisible to the thing doing the checking: a runtime check over types, interfaces, type-only exports or other constructs erased before runtime; a static parse over a value computed at runtime; a type check over I/O | BLOCKER |
@@ -1490,7 +1490,7 @@ distinguishes the two outcomes, so no amount of re-running the gate reveals it.
 
 1. **Find the gates that assert failure.** `Grep` over §9's `Verify` blocks, every `verify` array,
    every epic Verify block and all of §20.1:
-   `pattern: "non-?zero|exits? [1-9]|exit code [1-9]|fails|should fail|must fail|expect(ed)? (to )?fail|\\|\\| exit 0|! [a-z]|if .*; then exit 1|set \\+e|\\$\\? -ne 0|\\$\\? != 0|returns? an error|errors? out|rejects?|is not (ignored|tracked|present|found)|grep -v|! grep"`,
+   `pattern: "non-?zero|exits? [1-9]|exit code [1-9]|fails|should fail|must fail|expect(ed)? (to )?fail|\\|\\| exit 0|! [a-z]|if .*; then exit 1|set \\+e|\\$\\? -ne 0|; test \\$\\? -eq|\\$\\? != 0|returns? an error|errors? out|rejects?|is not (ignored|tracked|present|found)|grep -v|! grep"`,
    `output_mode: "content"`, `-n: true`, `-i: true`.
 2. **For each, ask the only question that matters: name at least one way this command exits non-zero
    *without* the property being true.** You are looking for a second path to the same exit status:
@@ -1521,17 +1521,20 @@ distinguishes the two outcomes, so no amount of re-running the gate reveals it.
 | A gate whose command's arity or flags do not match the tool's documented form | MAJOR on its own; **BLOCKER** when it is also the pass condition, since the gate then tests only itself |
 
 **The fix to recommend is specific and small: pin the expected code and the expected text.** Assert
-the *documented* exit status for that condition, not "non-zero" — `git check-ignore -q <one path>;
-test $? -eq 1` for "not ignored", one invocation per path — and where the tool distinguishes outcomes
+the *documented* exit status for that condition, not "non-zero" — `status=0; git check-ignore -q <one
+path> || status=$?; test "$status" -eq 1` for "not ignored", one invocation per path — and where the tool distinguishes outcomes
 only in its output, match on the output too. And when a flag's arity is the question, **run the
 command once per argument**: a loop of single-argument invocations cannot pass for a usage error.
 
-**Two carve-outs.** A gate wrapped in an assertion that already names the code — `test $? -eq 1`,
+**Two carve-outs.** A gate wrapped in an assertion that already names the code — `status=0; cmd || status=$?; test "$status" -eq 1`,
 `expect(exitCode).toBe(2)`, a documented exit-code table row from the project's *own* error taxonomy
 — is correct work, and §9 rule 11 requires exactly that form; do not file it. And a gate asserting a
 *message* as well as a failure ("exits non-zero **and** stderr contains `E_CONFIG_MISSING`") has
 already excluded the usage-error path, because a usage error prints something else. Say which one you
-credited.
+credited. **`cmd; test $? -eq N` does not earn the first carve-out:** under `set -e` — how unattended
+runners execute these blocks — a non-zero `cmd` aborts the block before `test` runs, so the correct
+step fails; file it as #36 with the strict form as the fix, the same as a bare `!` (whose failure
+`set -e` ignores, so a mid-block `!` gate fails silently).
 
 ---
 
@@ -1724,8 +1727,8 @@ exactly as §4 defines the field and as §4's own example writes it — no paren
 and key order matches §5's "stable, sorted" contract. 0 runtime-produced strings: the goldens quote
 only this project's own error codes, so no capture provenance is owed. Step 4 generates and commits
 them at the step that first runs the renderer rather than dictating bytes ahead of it)** ·
-**no gate passes vacuously (11 failure-asserting gates; all 11 pin the expected code — `test $? -eq
-1`, not "non-zero" — and the 2 `git check-ignore` gates run one pathname per invocation, so a usage
+**no gate passes vacuously (11 failure-asserting gates; all 11 pin the expected code — `status=0; cmd ||
+status=$?; test "$status" -eq 1`, not "non-zero" — and the 2 `git check-ignore` gates run one pathname per invocation, so a usage
 error cannot satisfy them. The 3 test-runner gates assert a non-zero test count, so an empty run
 fails)** · **nothing governs a command that already ran (`.gitignore` is written in §10's Bootstrap
 before the first `git add -A`; `.dockerignore` lands at step 4 and the first `docker build` is step
