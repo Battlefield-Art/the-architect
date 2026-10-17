@@ -2,7 +2,7 @@
 
 > The contract between your server and everything that calls it — your own UI, someone else's app, and increasingly an agent that read your docs thirty seconds ago.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## When a project needs this
 
@@ -125,11 +125,11 @@ A markdown index at `/llms.txt` listing your key docs, plus a paragraph on what 
 
 Ship one when agents should *act*, not just read. It wraps the same service layer as your HTTP API — never a second implementation.
 
-**Get the protocol reality right.** The most recently ratified revision of the Model Context Protocol is **stateful**: a session begins with an `initialize` handshake and the negotiated capabilities persist for the connection. A stateless revision exists, but only as an **unratified draft**, and its own compatibility matrix shows that servers built for the modern path alone *fail* against the hosts currently deployed in the field. Do not build as though MCP went stateless.
+**Get the protocol reality right.** The current Model Context Protocol revision is **stateless**: there is no `initialize` handshake; every request declares its protocol version in `_meta` (and, on Streamable HTTP, in the `MCP-Protocol-Version` header), and the server accepts or rejects each request independently. Servers **must** implement `server/discover`. The handshake-based revisions are now **legacy** — and per the spec's own compatibility matrix, a legacy-only host talking to a modern-only server *fails*, with no fall-forward. Hosts in the field still speak legacy. Confirm the current revision string at modelcontextprotocol.io/specification/versioning before pinning it.
 
 Practical guidance:
-- **Build dual-era.** Support the ratified stateful session, and tolerate the newer draft shape where a host offers it. Default to performing `initialize`.
-- **Negotiate, do not assume.** Read the client's declared capabilities from the handshake and degrade gracefully rather than erroring on an older host.
+- **Modern is the baseline; build dual-era.** Serve per-request `_meta` requests statelessly, implement `server/discover`, and also answer a legacy `initialize` (scoped to the stdio process or HTTP session) so older hosts keep working. The spec allows both eras on the same endpoint.
+- **Negotiate, do not assume.** Reject an unsupported version with the spec's unsupported-version error listing what you support, read the client's declared capabilities, and degrade gracefully rather than erroring on an older host.
 - **Few, well-named tools.** Twelve sharp tools beat sixty generated one-per-endpoint. Every tool description is a prompt; write it as instructions to a competent stranger, including when *not* to use it.
 - **Token-lean responses.** Return the fields an agent needs, paginate by default, and never dump a raw database row. Response size is a cost and a context-window risk.
 - **Same authorization, same limits.** An MCP call is an API call. It carries an identity, passes the same guard, and counts against the same rate limits and audit log.
@@ -141,10 +141,10 @@ For a project whose deliverable *is* the server, see `knowledge/shapes/cli-libra
 
 | Table | Fields | Notes |
 |---|---|---|
-| `api_key` | id, org_id, name, key_hash, prefix, scopes, last_used_at, revoked_at | Hash the secret, display once, make rotation possible |
-| `idempotency_key` | key, org_id, endpoint, request_hash, response_body, status_code, created_at | Unique on (key, org_id). Replay the stored response on retry |
-| `webhook_endpoint` | id, org_id, url, secret, event_types, disabled_at | Outbound webhooks only |
-| `webhook_delivery` | id, endpoint_id, event_id, status, attempts, next_retry_at, response_code | Retries with backoff, visible in a UI so support can answer "did it send?" |
+| `api_keys` | Defined in `knowledge/capabilities/auth.md` — the single owner. Do not redefine it here | Hash the secret, display once, make rotation possible |
+| `idempotency_keys` | key, org_id, endpoint, request_hash, response_body, status_code, created_at | Unique on (key, org_id). Replay the stored response on retry. Same table as `knowledge/capabilities/deployment.md`'s enqueue keys — `endpoint` is the scope |
+| `webhook_endpoints` | id, org_id, url, secret, event_types, disabled_at | Outbound webhooks only |
+| `webhook_deliveries` | id, endpoint_id, event_id, status, attempts, next_retry_at, response_code | Retries with backoff, visible in a UI so support can answer "did it send?" |
 
 ## Build steps this adds
 
@@ -155,7 +155,7 @@ For a project whose deliverable *is* the server, see `knowledge/shapes/cli-libra
 5. **Rate limiting** — per key and per IP, with `Retry-After`. *Done when:* exceeding the configured limit returns 429 with the header, and the limit resets after the window.
 6. **Idempotency** — key storage and replay on mutating endpoints. *Done when:* the same `Idempotency-Key` sent twice creates one row and returns the identical response body both times.
 7. **OpenAPI generated from the schemas** — checked in, plus docs. *Done when:* a generated client from the document successfully calls three endpoints, and changing a schema changes the checked-in document in the same commit.
-8. **Agent surface** *(when agents are a target)* — `/llms.txt` with markdown docs, and an MCP server over the service layer. *Done when:* the MCP server completes `initialize` with a host, lists its tools, and a read tool returns paginated data under the same authorization as the HTTP path.
+8. **Agent surface** *(when agents are a target)* — `/llms.txt` with markdown docs, and an MCP server over the service layer. *Done when:* a modern request (`server/discover`, then a tools list carrying the version in `_meta`) and a legacy `initialize` session both list the same tools, and a read tool returns paginated data under the same authorization as the HTTP path.
 
 ## Pitfalls
 

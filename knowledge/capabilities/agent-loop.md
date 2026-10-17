@@ -2,7 +2,7 @@
 
 > The execution engine for an agent that acts: model proposes a tool call, you run it, you feed the result back — plus everything that makes that loop survive a crash, a deploy, a retry, and a human saying "no".
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 The loop itself is fifteen lines. Everything expensive is around it: persistence, idempotency, budgets, approvals, cancellation, and traces. Design those first — retrofitting durability into a loop that kept its state in a local variable is a rewrite.
 
@@ -49,7 +49,7 @@ Use a framework for the *prompt-and-tool ergonomics* if you like it, but make it
 load run + history
 loop:
   budget check (steps, wall clock, tokens, cost)  -> exceed = terminate, status budget_exceeded
-  call model with history + tool schemas          -> persist assistant step
+  call model with history + tool schemas          -> persist raw response blocks verbatim (incl. thinking)
   no tool calls?                                  -> terminate, status succeeded
   for each tool call:
     validate args against schema                  -> invalid = return error result to model, continue
@@ -57,16 +57,17 @@ loop:
     write tool_call row WITH idempotency key      -> BEFORE executing
     execute with per-tool timeout
     persist result (or error, or timeout) as a tool result the model can read
-  append results to history, repeat
+  append results to the END of history, repeat
 ```
 
-Five invariants, all non-negotiable:
+Six invariants, all non-negotiable:
 
 1. **Persist before executing.** The row that says "I am about to send this email" is written and committed first. Otherwise a crash mid-call leaves you unable to tell whether it happened.
 2. **Tool failures are results, not exceptions.** A timeout, a `404`, a validation error — all return to the model as a tool result. Throwing through the loop kills a run the model could have recovered from.
 3. **Every side-effecting tool carries an idempotency key**, generated from run id + step index + tool + a hash of the arguments, written before execution and honored by the downstream API. Retries are guaranteed; duplicates must not be.
 4. **The loop terminates on budget, always.** The model does not get to decide when to stop.
 5. **Status is a column, never inferred** from the presence of rows: `queued → running → awaiting_approval → succeeded | failed | cancelled | budget_exceeded`.
+6. **Replay history byte-faithfully.** With tool results, the provider requires the assistant's thinking blocks back complete and unmodified. Persist the raw provider response content blocks — thinking included — as the replay source, encrypted at rest. History is append-only: redact the trace/display copy, never the replay copy, and bound context with the provider's server-side compaction or context editing instead of rewriting earlier turns. Confirm the mechanics with `claude-api`.
 
 ## Data model additions
 
@@ -106,7 +107,7 @@ Gate a tool when it spends money, sends external communication, deletes or overw
 Traces are the debugger. Without them, every incident is guesswork.
 
 - One trace per run, one span per step, with model id, prompt version, latency, tokens, and cost on every span.
-- The full transcript — messages, tool arguments, tool results — must be replayable from the database. Redact secrets on write, not on read.
+- The full transcript — messages, tool arguments, tool results — must be replayable from the database. Keep two copies: the encrypted, verbatim replay copy (invariant 6) and a trace/display copy with secrets redacted on write. Never redact or truncate the replay copy.
 - Dashboards that earn their place: run success rate, p95 steps per run, p95 wall clock, cost per successful run, tool error rate by tool, approval wait time, and stuck-run count.
 - Alert on runs in `running` past their wall-clock budget and on any single tool's error rate spiking — those two catch most real failures.
 
@@ -135,7 +136,8 @@ Details in `knowledge/capabilities/observability.md`.
 - **Trusting tool output.** Tool results and retrieved documents are attacker-controlled text. An instruction inside a result must never trigger a gated tool.
 - **Retry storms.** Backoff with jitter, cap attempts, dead-letter the rest. Retrying every failed step immediately turns a provider blip into an outage.
 - **Non-deterministic code inside a durable engine's replayed path.** Wall-clock reads, random values, and direct network calls in replayed code produce impossible-to-reproduce bugs. Keep them in activities, not in workflow code.
-- **Secrets in persisted tool arguments.** Traces are read by support staff. Redact at write time.
+- **Secrets in persisted tool arguments.** Traces are read by support staff. Redact the trace copy at write time; the replay copy stays verbatim, encrypted, and off support's screens.
+- **Editing history before replay.** Redacting, truncating, or reordering earlier turns corrupts the thinking blocks the provider expects back unchanged — the next call errors or silently loses its reasoning.
 - **No stuck-run detection.** Runs quietly wedged in `running` are invisible until a customer asks; the sweeper is not optional.
 
 ## See also

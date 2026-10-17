@@ -2,7 +2,7 @@
 
 > Proving who the caller is, and deciding what that caller is allowed to touch — the two jobs that get conflated and then leak data.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## When a project needs this
 
@@ -33,12 +33,12 @@ Rules: browsers get cookies, never tokens in `localStorage`. Native and machine 
 | **Clerk** | SaaS that wants login working today | Drop-in UI, orgs/invitations/roles built in, MFA, bot defense, mobile SDKs | Users live in their system; per-MAU pricing; mirror-sync required |
 | **Supabase Auth** | Anything already on Supabase | Users land in your own Postgres, so row-level policies can reference them; magic links, social, MFA | Weaker org/team primitives; you build the account UI |
 | **Better Auth** | Self-hosted TypeScript with real features | Users and sessions in your database, plugin-based orgs/MFA/passkeys/API keys, no per-user cost | You own deliverability, rate limiting, and the abuse surface |
-| **Auth.js** | Provider-heavy OAuth login, minimal extras | Huge provider list, adapters for common ORMs, free | Thin above sign-in — orgs, roles, MFA, and admin flows are yours to build |
+| **Auth.js** | Existing Auth.js codebases only | Huge provider list, adapters for common ORMs, free | Now maintained by the Better Auth team, which recommends Better Auth for new projects; thin above sign-in — orgs, roles, MFA, and admin flows are yours to build |
 | **WorkOS** | Selling to enterprises | SSO, SAML, directory sync, audit logs as a product | Overkill until a buyer demands SSO; priced per connection |
 | **Firebase Auth** | Mobile-first, Google ecosystem | Best-in-class phone/anonymous auth, strong native SDKs | Pulls the rest of the app toward Google's data layer |
 | **API keys** | B2B and machine callers | Trivial to issue and revoke; no session at all | Not user identity — store hashed, scope them, support rotation |
 
-**Lucia is no longer a library.** Its author stopped shipping it and turned the project into implementation guides for writing session auth yourself. Treat it as reading material, not a dependency. Older guidance points at Auth.js as the replacement; the closer successor for library-shaped self-hosted auth is Better Auth, which covers the same ground Lucia did plus orgs, MFA, and passkeys.
+**Lucia is no longer a library.** Its author stopped shipping it and turned the project into implementation guides for writing session auth yourself. Treat it as reading material, not a dependency. For new self-hosted, library-shaped auth, use Better Auth — it covers the same ground Lucia did plus orgs, MFA, and passkeys, and Auth.js itself is now part of Better Auth.
 
 ## Recommendation
 
@@ -53,7 +53,7 @@ Deviate when:
 
 ## The auth-to-database pairing question
 
-Ask it in Phase 2, because it decides whether your `user` table is real or a shadow.
+Ask it in Phase 2, because it decides whether your `users` table is real or a shadow.
 
 **Provider owns the users** (Clerk, WorkOS, Firebase): your database holds a *mirror* row. Consequences — the primary key is the provider's string id, not your own UUID; signup is not transactional; and a dropped webhook means a foreign key pointing at nothing.
 
@@ -71,7 +71,7 @@ Never let both sides own profile fields. Pick one home for name, avatar, and loc
 - Climb this ladder only as far as the brief requires:
   1. **Role column** (`owner` / `admin` / `member`) checked in one guard. Covers ~90% of products.
   2. **Role → permission map in code** — handlers ask `can(actor, 'invoice.delete')`, never `role === 'admin'`. Adds capability without a schema change.
-  3. **Permission rows in the database** — only when customers define their own roles. This is a product feature with a UI, not a refactor.
+  3. **Permission rows in the database** — only when customers define their own roles. This is a product feature with a UI, not a refactor. If `knowledge/capabilities/enterprise-readiness.md` applies, start at rung 3 — its `roles` / `permissions` / `role_permissions` tables are this rung.
 - One authorization helper, called by every read and write. Scattered `if` checks are how tenants see each other's data.
 - Return **404, not 403**, for a resource in another tenant. 403 confirms the id exists.
 - The last owner of an organization cannot be removed or demoted. Enforce in the database or the guard, not the UI.
@@ -83,7 +83,7 @@ Pick by audience, not by count. Every extra provider is another account-linking 
 | Audience | Ship |
 |---|---|
 | Developer tools | Google + GitHub |
-| Consumer | Google + Apple — Apple is required by App Store review if you offer any third-party login on iOS |
+| Consumer | Google + Apple — App Store Review Guideline 4.8: an iOS app whose primary account is set up via a third-party login must also offer an equivalent privacy-preserving login (name and email only, private email option, no ad tracking without consent). Sign in with Apple is the usual way to satisfy it; exemptions exist (own accounts only, education/enterprise accounts, government ID, third-party-service clients) |
 | B2B / enterprise | Google + Microsoft, then SSO when a buyer asks |
 
 Decide the collision policy up front: when a social login returns an email that already has a password account, either link automatically **only if the provider marked the email verified**, or force a login-and-confirm. Auto-linking on an unverified email is account takeover.
@@ -92,12 +92,14 @@ Decide the collision policy up front: when a social login returns an email that 
 
 | Table | Fields | Notes |
 |---|---|---|
-| `user` | id, external_auth_id, email, name, avatar_url, timestamps | Mirror when the provider owns identity; source of truth when you do. Unique index on `external_auth_id` |
-| `session` | id, user_id, expires_at, ip, user_agent, revoked_at | Self-hosted only. Enables device list and remote sign-out |
-| `organization` | id, name, slug, timestamps | Only if multi-tenant. Slug is immutable once public |
-| `membership` | user_id, org_id, role, invited_by, accepted_at | Roles live here. Unique on (user_id, org_id) |
-| `invitation` | org_id, email, role, token_hash, expires_at, accepted_at | Store the hash, not the token. Single-use and expiring |
-| `api_key` | id, org_id, name, key_hash, prefix, scopes, last_used_at, revoked_at | Hash the secret; show it once. `prefix` makes keys identifiable in logs without exposing them |
+| `users` | id, external_auth_id, email, name, avatar_url, timestamps | Mirror when the provider owns identity; source of truth when you do. Unique index on `external_auth_id` |
+| `sessions` | id, user_id, expires_at, ip, user_agent, revoked_at | Self-hosted only. Enables device list and remote sign-out |
+| `organizations` | id, name, slug, plan, data_region, timestamps | Only if multi-tenant. Slug is immutable once public. `plan` and `data_region` stay null until billing or residency applies |
+| `memberships` | id, user_id, org_id, role, status, invited_by, accepted_at, timestamps | Roles live here. Unique on (user_id, org_id). `role` is a text column at rungs 1–2, a `role_id` to `roles` at rung 3 |
+| `invitations` | org_id, email, role, token_hash, expires_at, accepted_at | Store the hash, not the token. Single-use and expiring |
+| `api_keys` | id, org_id, name, key_hash, prefix, scopes, last_used_at, expires_at, revoked_at | Hash the secret; show it once. `prefix` makes keys identifiable in logs without exposing them. Keys are actors in the audit log |
+
+This file is the **single owner** of `users`, `organizations`, `memberships`, and `api_keys`. `knowledge/capabilities/api-design.md` and `knowledge/capabilities/enterprise-readiness.md` reference and extend these tables; they never redefine them.
 
 ## Build steps this adds
 

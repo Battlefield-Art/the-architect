@@ -2,7 +2,7 @@
 
 > Everything between your application and a language model provider: one gateway, streaming, structured output, caching, cost control, guardrails, and the evals that let you change a prompt without fear.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## Standing rule — never hand-maintain a model table
 
@@ -47,10 +47,10 @@ Pick a tier by the job, then get the current id for that tier from the `claude-a
 | Tier | Use for | Rule of thumb |
 |---|---|---|
 | **Small / fast** | Classification, routing, extraction, tagging, moderation pre-filter, short rewrites | Anything with a fixed output shape and a right answer. Latency and unit cost dominate; run these at high volume |
-| **Mid / workhorse** | Production chat, summarization, drafting, most tool-calling, RAG answers | Your default. Ship on this tier, and only escalate a call site when an eval shows it failing |
+| **Mid / workhorse** | Production chat, summarization, drafting, most tool-calling, RAG answers | Where most call sites land after the eval below — not where you start |
 | **Frontier** | Multi-step planning, hard reasoning, code generation, long-horizon agent runs, judging other models | Expensive per call but often cheaper per *solved task* — one correct answer beats four cheap wrong ones plus a retry |
 
-Two rules that matter more than the choice: **start one tier up, then move down with an eval to prove it holds** — down-tiering blind is how quality regressions ship. And **batch/offline work belongs on whatever asynchronous discount the provider offers**, since nobody is waiting.
+Rules that matter more than the choice: **start one tier up, then step down with an eval to prove it holds** — down-tiering blind is how quality regressions ship. **Set the effort level explicitly** on every call site (valid values and per-model defaults from `claude-api`); before splitting one call site across tiers, measure the higher tier at lower effort first — prompt caches are model-scoped, so a cross-model split re-pays every cache write. And **batch/offline work belongs on whatever asynchronous discount the provider offers**, since nobody is waiting.
 
 ## Streaming
 
@@ -64,8 +64,9 @@ Stream anything a human reads. Non-streamed responses feel broken above roughly 
 
 ## Structured output
 
-- Use the provider's schema-constrained mode (tool/function calling or native JSON schema). Never ask for JSON in prose and parse the result.
-- Keep **one source of truth** for each schema and derive both the provider schema and the runtime validator from it. Two hand-written copies drift within a week.
+- Use the provider's **native schema-constrained output**, or strict tool definitions with *automatic* tool choice. Several current models reject forced tool choice outright — confirm with `claude-api`. Never ask for JSON in prose and parse the result.
+- Keep **one source of truth** for each schema and derive both the provider schema and the runtime validator from it. Two hand-written copies drift within a week. Constraints the provider schema cannot express (numeric ranges, string lengths) live in the runtime validator — it is the real contract.
+- **Check the stop reason before parsing.** A refusal or a max-tokens stop can return output that violates the schema. Compare enum values case-insensitively — constrained output does not guarantee their capitalization.
 - Validate every response even in constrained mode. On validation failure, retry once with the validator error appended — then fail loudly.
 - Keep schemas shallow and required fields few. Deep nesting and long enums measurably degrade quality; ask for a flat object and assemble it in code.
 
@@ -77,8 +78,8 @@ Definitions and loop mechanics live in `knowledge/capabilities/agent-loop.md`. A
 
 The single highest-leverage cost and latency optimization. Caching is **prefix-based**: the cached span must be byte-identical from the very start of the request.
 
-- Order the prompt **most stable first**: system instructions, tool definitions, long reference documents, then conversation, then the current user message.
-- One changed byte anywhere before a cache breakpoint invalidates everything after it. Timestamps, request ids, and shuffled tool order in the system prompt are the classic cache killers.
+- The provider renders the prefix as **tools → system → messages**, in that order. Keep each stable: a fixed tool list, then system instructions and long reference documents, then conversation, then the current user message.
+- One changed byte anywhere before a cache breakpoint invalidates everything after it. Timestamps, request ids, and shuffled order in the tool list are the classic cache killers — and so is changing the thinking or effort settings mid-conversation, which starts the cache over.
 - Cache writes cost more than ordinary input; reads cost dramatically less. Caching wins when a prefix is reused across requests or turns, and loses on genuinely one-shot calls.
 - Verify current pricing multipliers, minimum cacheable length, and TTL with the `claude-api` skill before designing around them.
 - Instrument cache hit rate as a first-class metric. A silent drop to zero after a prompt refactor is a large invisible bill.
@@ -88,12 +89,13 @@ The single highest-leverage cost and latency optimization. Caching is **prefix-b
 - **Never estimate cost by counting characters.** Persist provider-reported usage — input, output, cache-write, cache-read — per call. Estimates drift far enough to make margin analysis fiction.
 - Cap max output tokens on every call. Runaway generation is a real bill.
 - Enforce a per-user and per-org budget **before** the request, not after. See `knowledge/capabilities/credit-metering.md`.
-- Bound conversation history with a truncation or summarization policy in the gateway. Cost and latency grow every turn until requests fail.
+- Bound conversation history with the provider's server-side compaction or context editing, or an append-only summarization policy — never by rewriting earlier turns, which breaks thinking-block replay and the cache. Cost and latency grow every turn until requests fail.
 - Alert on cost per request, not just total spend — a prompt change that doubles unit cost is invisible in a monthly total until the bill arrives.
 
 ## Rate limits and retries
 
 - Retry only on `429`, provider overload, and transport failures. Never retry a `400` — the request is wrong and will stay wrong.
+- **Check the stop reason before reading content.** A safety refusal is an HTTP `200` with a refusal stop reason, not an error — your retry logic never sees it. Route it to the documented fallback (see `claude-api`) and count it by category.
 - Exponential backoff **with jitter**, honoring the provider's retry-after header when present. Synchronized retries across your fleet are how a blip becomes an outage.
 - **Do not silently retry a stream that already emitted tokens** into a fresh stream; the user sees the answer restart. Surface it.
 - Cap concurrency at your own gateway and queue the overflow, so one tenant cannot consume the organization's whole rate limit.
@@ -137,7 +139,7 @@ Join `llm_calls` to whatever your shape's unit of work is — a message, a run, 
 2. **Usage persistence** — every call writes an `llm_calls` row from provider-reported usage. · *Done when:* after one request the row exists with non-null input, output, and cache token counts, attributable to a user.
 3. **Streaming path** — SSE endpoint with keepalive, partial persistence, and abort propagation. · *Done when:* a client that disconnects mid-stream leaves a persisted partial with status `aborted`, and the provider request is observably cancelled.
 4. **Structured output** — one schema definition generating both provider schema and validator, with one repair retry. · *Done when:* a forced malformed response is repaired on retry, and a second failure raises a typed error covered by a test.
-5. **Prompt caching** — reorder the prompt stable-first, set breakpoints, expose hit rate. · *Done when:* the second identical request reports non-zero cache-read tokens and measurably lower latency, both asserted in a test.
+5. **Prompt caching** — reorder the prompt stable-first, set breakpoints, expose hit rate. · *Done when:* using a fixture prefix above the target model's minimum cacheable length (from `claude-api` — below it, caching silently does not happen), a test asserts the second identical request reports `cache_read_input_tokens > 0`; latency is recorded, not asserted.
 6. **Budgets and limits** — pre-call quota check, max output tokens, gateway concurrency cap, backoff with jitter. · *Done when:* WHEN a user exceeds their quota THE SYSTEM SHALL reject the request before any provider call, with zero spend recorded.
 7. **Guardrails** — untrusted content delimited, secrets excluded from prompts, trace redaction. · *Done when:* a regression test proves an instruction embedded in a retrieved document does not change tool behavior, and no test fixture secret appears in a persisted trace.
 8. **Eval harness** — golden set, scorers, committed baseline, CI gate. · *Done when:* the eval command scores every case, writes a report with pass rate, cost, and p95 latency, and exits non-zero below baseline.
@@ -147,7 +149,7 @@ Join `llm_calls` to whatever your shape's unit of work is — a message, a run, 
 - **Hardcoding a model id at a call site.** Config only. Otherwise the next model release is a refactor across the codebase.
 - **Importing the provider SDK in more than one place.** The gateway stops being a seam the moment there is a second import.
 - **Chunk-and-embed RAG as the reflex first move.** When the relevant corpus fits in context, long context plus prompt caching is usually cheaper *and* more accurate, and it removes chunking, embedding drift, and a vector store from your ops surface. Choose with an eval. Retrieval wins when the corpus is large, the needed slice is unpredictable per query, or answers must cite exact sources — and then it wants filtering plus hybrid keyword-and-vector search with a reranker, not naive top-k.
-- **Temperature as a quality knob.** For extraction and classification, lower it and fix the prompt. Sampling settings do not repair an ambiguous instruction.
+- **Temperature as a quality knob.** Several current models reject any non-default sampling setting with a `400` — confirm with `claude-api` before emitting one. Fix ambiguity in the prompt and the schema; use the effort setting to trade depth for cost.
 - **Retrying on validation failure forever.** One repair attempt, then fail. Retry loops turn a bad prompt into a bad bill.
 - **Trusting token counts you computed yourself.** Tokenizers differ by model and change. Use provider-reported usage.
 - **Shipping the demo prompt.** The prompt that impressed in a notebook has no golden set, no version, and no owner. Version it before it reaches production.

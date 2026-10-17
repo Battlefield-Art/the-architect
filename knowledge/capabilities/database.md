@@ -2,7 +2,7 @@
 
 > Where state lives, how it is shaped, and how it changes over time without losing anybody's data.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## When a project needs this
 
@@ -117,14 +117,14 @@ This capability contributes the conventions above rather than tables of its own.
 
 | Table | Fields | Notes |
 |---|---|---|
-| `audit_log` | actor_id, org_id, action, target_type, target_id, metadata, created_at | Append-only. Add on day one when the buyer is a company |
+| `audit_events` | Schema owned by `knowledge/capabilities/enterprise-readiness.md` — use it as-is, never a second audit table | Append-only. Add on day one when the buyer is a company |
 | `outbox` | id, event_type, payload, created_at, processed_at, attempts | Write alongside the row in the same transaction when an external system must learn about a change reliably |
 
 ## Build steps this adds
 
 1. **Provision + connect** — create the database, store the URL as a secret, connect through the pooler with a direct URL reserved for migrations. *Done when:* a health check queries the database and returns 200 from a deployed environment, not just locally.
 2. **Schema + first migration** — core entities, tenancy scope columns, required columns, foreign keys. *Done when:* the migration applies to an empty database and a second run is a no-op.
-3. **Seed script** — realistic data covering at least two tenants. *Done when:* one command produces a database you can log into and browse.
+3. **Seed script** — realistic data covering at least two tenants. *Done when:* the seed command exits 0 and a query returns at least two tenants, each with rows in every core table.
 4. **Constraints and indexes** — foreign-key indexes, unique constraints for real-world rules, indexes for the main list query. *Done when:* the plan for the dashboard list query uses an index scan, and inserting a duplicate email for one tenant is rejected by the database.
 5. **Query layer** — every read and write goes through functions that take the tenancy scope as an argument. *Done when:* no route handler or component builds a query inline.
 6. **Pagination** — cursor helper plus a server-enforced maximum page size. *Done when:* requesting 10,000 rows returns the cap, and inserting a row mid-scroll neither duplicates nor skips an item.

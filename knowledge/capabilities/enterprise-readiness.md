@@ -3,7 +3,7 @@
 > The procurement and security controls that gate B2B deals — SSO, SCIM, audit logs, permissions,
 > residency, and compliance evidence. No amount of product polish substitutes for them.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 Enterprise readiness is not a feature users request. It is a checklist a security reviewer sends
 after your champion already wants to buy. The deal stalls until you answer it.
@@ -115,10 +115,12 @@ Keep baseline security in every tier.
 
 ## Data model additions
 
+Extends `knowledge/capabilities/auth.md`'s `users`, `organizations`, `memberships`, and `api_keys` —
+the same tables, never a second copy. `organizations` is the tenant boundary every domain row
+references; `memberships` is many-to-many from the start. This capability adds:
+
 | Entity | Fields | Notes |
 |---|---|---|
-| `organizations` | id, name, slug, plan, data_region, created_at | The tenant boundary. Every domain row references it. |
-| `memberships` | org_id, user_id, status, invited_by, joined_at | A user can belong to several orgs — model it as many-to-many from the start |
 | `roles` | id, org_id (null = system role), name, description | Custom roles are org-scoped rows |
 | `permissions` | key (`billing.manage`, `member.invite`), description | A fixed catalog defined in code, seeded into the database |
 | `role_permissions` | role_id, permission_key | Roles are bundles; the code checks permissions |
@@ -126,8 +128,7 @@ Keep baseline security in every tier.
 | `verified_domains` | org_id, domain, verified_at, method | Required before domain-based auto-join. Never auto-join an unverified domain. |
 | `scim_tokens` | org_id, token_hash, last_used_at, revoked_at | Store a hash, never the token |
 | `directory_users` / `directory_groups` | external_id, org_id, raw_attributes, synced_at | The IdP's view, mapped to your users — keep them separate tables |
-| `audit_events` | id, org_id, actor_type, actor_id, actor_ip, action, target_type, target_id, metadata, request_id, occurred_at | Append-only. No updates, no deletes. |
-| `api_keys` | org_id, name, key_hash, scopes, last_used_at, expires_at, revoked_at | Keys are actors in the audit log too |
+| `audit_events` | id, org_id, actor_type, actor_id, actor_ip, action, target_type, target_id, metadata, request_id, occurred_at | Append-only. No updates, no deletes. The one audit table — `knowledge/capabilities/database.md` defers here |
 
 **Audit event rules.** `action` is a stable `object.verb` string (`member.invited`,
 `sso_connection.enabled`, `export.downloaded`) — it is an API contract, so never rename one. Write
@@ -152,23 +153,25 @@ and offer export as newline-delimited JSON or CSV.
    internal user record with one session shape. · *Done when:* adding a new auth method touches only
    the seam module; a test asserts identical session claims regardless of login method.
 5. *(deal-triggered)* **Add SAML and OIDC SSO** — per-org connections, self-serve setup, optional
-   enforcement. · *Done when:* a connection against a live IdP test tenant logs a user in end to
-   end; WHEN `enforced_at` is set THE SYSTEM SHALL reject password login for that org's verified
+   enforcement. · *Done when:* a connection against a stub/mock IdP (signed fixture assertions)
+   logs a user in end to end; the live-IdP check goes on the post-build launch checklist; WHEN `enforced_at` is set THE SYSTEM SHALL reject password login for that org's verified
    domains with a redirect to the IdP.
 6. *(deal-triggered)* **Add SCIM provisioning** — user create/update/deactivate and group sync.
-   · *Done when:* deactivating a user in the IdP revokes their sessions within one sync cycle,
-   verified against a real IdP; a replayed SCIM request is idempotent.
+   · *Done when:* a mock-IdP SCIM deactivate request revokes that user's sessions and API keys,
+   asserted in a test; a replayed SCIM request is idempotent. Real-IdP verification goes on the
+   post-build launch checklist.
 7. *(deal-triggered)* **Expose audit logs to customers** — filterable UI plus export.
    · *Done when:* an org admin filters by actor and date range and downloads a file whose row count
    matches the filtered view.
 8. *(deal-triggered)* **Pin data residency** — region recorded on the org, enforced at the storage
-   layer. · *Done when:* a test asserts an EU-region org's records and backups never leave the EU
-   region, including third-party subprocessors.
+   layer. · *Done when:* a test asserts every storage and backup client resolved for an EU org is
+   configured with an EU region, and a subprocessor-manifest check fails on any non-EU entry.
 9. **Publish a trust page** — subprocessor list, security practices, incident contact, status page,
    DPA template. · *Done when:* the page is live and linked from the footer and the pricing page.
 10. **Adopt SOC 2 practices without the audit** — access reviews on a schedule, offboarding
-    checklist, PR-gated changes, vendor inventory, incident response doc. · *Done when:* each
-    practice has a written owner and a documented cadence, and the last run of each is dated.
+    checklist, PR-gated changes, vendor inventory, incident response doc. · *Done when:* a
+    grep check exits 0 only if each practice's doc exists and names an owner, a cadence, and a
+    dated last run; first real runs go on the post-build launch checklist.
 
 ## Pitfalls
 
