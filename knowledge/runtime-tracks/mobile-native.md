@@ -2,9 +2,9 @@
 
 > Choose this when the deliverable is an app installed from the App Store or Google Play — push notifications, camera, offline storage, background work, a home-screen icon.
 
-**Last verified: 2026-07-27** — every version below was checked against the npm registry, the Expo
-SDK 57 `bundledNativeModules.json`, and the vendors' release feeds on this date. When refreshing this
-file, re-verify and update this line.
+**Last verified: 2026-10-17** — every version below was checked against the npm registry, the Expo
+SDK 58 `bundledNativeModules.json` and default template, and the vendors' release feeds on this date.
+SDK 58 became npm `latest` on 2026-10-16. When refreshing this file, re-verify and update this line.
 
 ## When to choose this track
 
@@ -28,48 +28,49 @@ file, re-verify and update this line.
 
 | Layer | Choice | Version | Notes |
 |---|---|---|---|
-| Framework | Expo SDK | `57.0.8` | npm `latest`; SDK line `sdk-57` |
-| Runtime | React Native | `0.86.0` | Expo template pins exact `0.86.0`; npm `latest` is `0.86.2` |
-| UI | React | `19.2.3` | RN 0.86 peer is `^19.2.3` |
-| Routing | `expo-router` | `~57.0.8` | Versioning changed — see Gotchas |
-| Styling | `nativewind` | `4.2.6` | Needs `tailwindcss` **3.x**, not 4 |
-| Styling | `tailwindcss` (native only) | `~3.4.17` | Pinned separately from any web app in the repo |
-| Animation | `react-native-reanimated` | `4.5.1` | SDK pin; npm `latest` is `4.5.3` |
-| Animation | `react-native-worklets` | `0.10.1` | Mandatory peer of Reanimated 4 |
-| Gestures | `react-native-gesture-handler` | `~2.32.0` | npm `latest` is `3.1.0` — **do not install it yet** |
-| Navigation | `react-native-screens` | `~4.26.0` | |
-| Navigation | `react-native-safe-area-context` | `~5.7.0` | |
-| Web output | `react-native-web` | `~0.21.0` | Optional; only if you want a web target |
-| Language | TypeScript | `~6.0.3` | Expo SDK 57 template pin. TS 7.0.2 exists; template has not moved |
-| Types | `@types/react` | `~19.2.2` | |
-| Testing | `jest-expo` | `57.0.2` | Major must match the SDK major |
-| Lint | `eslint-config-expo` | `~57.0.0` | Driven by `expo lint` |
-| Build/deploy | `eas-cli` | `21.3.0` | |
-| Health check | `expo-doctor` | `1.20.1` | |
-| Toolchain | Node | `22+` required, **24 LTS** recommended | RN 0.84 raised the floor to 22 |
+| Framework | Expo SDK | `58.0.14` | npm `latest`; SDK line `sdk-58` (SDK 57 is `57.0.30` on `sdk-57`) |
+| Runtime | React Native | `0.88.0` | Expo SDK 58 pins exact `0.88.0`; also npm `latest` |
+| UI | React | `19.3.0` | RN 0.88 peer is `^19.3.0` |
+| Routing | `expo-router` | `~58.0.23` | Versioning changed — see Gotchas |
+| Styling | `nativewind` | `4.2.7` | Needs `tailwindcss` **3.x**, not 4 |
+| Styling | `tailwindcss` (native only) | `~3.4.19` | `v3-lts` tag. Pinned separately from any web app in the repo |
+| Animation | `react-native-reanimated` | `4.7.1` | SDK pin = npm `latest`; peer RN `0.86 - 0.88` |
+| Animation | `react-native-worklets` | `0.13.0` | Mandatory peer of Reanimated 4 (`0.13.x`) |
+| Gestures | `react-native-gesture-handler` | `~3.3.0` | SDK 58 adopts GH 3; npm `latest` 3.4.0 is outside the SDK range — use `expo install` |
+| Navigation | `react-native-screens` | `~4.30.0` | `5.0.0-alpha` is on `next` — do not install |
+| Navigation | `react-native-safe-area-context` | `~5.10.1` | |
+| Web output | `react-native-web` | `~0.21.4` | Optional; only if you want a web target |
+| Language | TypeScript | `~6.0.3` | Expo SDK 58 template pin. TS 7.0.2 exists; template has not moved |
+| Types | `@types/react` | `~19.3.0` | |
+| Testing | `jest-expo` | `~58.0.11` | Major must match the SDK major |
+| Lint | `eslint-config-expo` | `~58.0.4` | Driven by `expo lint` |
+| Build/deploy | `eas-cli` | `25.1.1` | |
+| Health check | `expo-doctor` | `1.21.5` | |
+| Toolchain | Node | `^22.13 \|\| ^24.3 \|\| >=26` required, **24 LTS** recommended | RN 0.87 dropped Node 20; Expo SDK 58 tooling rejects odd releases (23, 25) |
 | Toolchain | JDK | `17` (Azul Zulu) | |
-| Toolchain | Android SDK | compile & target **36** (Android 16) | Play requires target 36 for new apps and updates from 2026-08-31 |
-| Toolchain | Xcode | **26+** with the iOS 26 SDK | Required for all App Store Connect uploads since 2026-04-28 |
+| Toolchain | Android SDK | compile **37**, target **36** (Android 16), min 24 | Expo SDK 58 defaults. Play requires target 36 for new apps and updates since 2026-08-31 (extensions to 2026-11-01) |
+| Toolchain | Xcode | **26.4+** with the iOS 26 SDK | Expo SDK 58 minimum (iOS 16.4+ deployment). App Store Connect requires Xcode 26+ since 2026-04-28. SDK 58 is built for iOS 27 / Xcode 27 |
 
 ### Fully-native sub-track
 
 | Platform | Language | Version | UI |
 |---|---|---|---|
-| iOS | Swift | `6.3.3` | SwiftUI, with UIKit for anything SwiftUI still can't do (complex collection views, precise keyboard control) |
-| Android | Kotlin | `2.4.10` | Jetpack Compose via BOM `2026.06.01` |
-| Cross-platform alt | Flutter / Dart | `3.44.8` / `3.12.2` | Flutter stable channel |
+| iOS | Swift | `6.4.1` | SwiftUI, with UIKit for anything SwiftUI still can't do (complex collection views, precise keyboard control). The language version you build with is the one bundled in your Xcode |
+| Android | Kotlin | `2.4.21` | Jetpack Compose via BOM `2026.09.00` |
+| Cross-platform alt | Flutter / Dart | `3.47.7` / `3.13.5` | Flutter stable channel |
 
 ## Setup
 
 ```bash
-# 1. Scaffold — this template already includes expo-router, reanimated, worklets, gesture-handler
-npx create-expo-app@latest my-app
+# 1. Scaffold — pin the SDK: until Expo Go for SDK 58 ships, interactive runs prompt between SDK 58 and 57.
+#    This template already includes expo-router, reanimated, worklets, gesture-handler 3
+npx create-expo-app@latest my-app --template default@sdk-58
 cd my-app
 
 # 2. NativeWind. Note the explicit npm install: `expo install` is SDK-aware but NativeWind is not in
 #    Expo's bundled module list, so it would pull Tailwind 4 and break the build.
-npm install nativewind@^4.2.6
-npm install --save-dev tailwindcss@~3.4.17 prettier-plugin-tailwindcss
+npm install nativewind@^4.2.7
+npm install --save-dev tailwindcss@~3.4.19 prettier-plugin-tailwindcss
 npx tailwindcss init
 
 # 3. Verify the whole dependency graph agrees with the SDK
@@ -90,6 +91,9 @@ module.exports = function (api) {
   };
 };
 ```
+
+`babel-preset-expo` 58 already adds `react-native-worklets/plugin` automatically when the package is
+installed, so the explicit entry above may register it twice — check for a duplicate before relying on it.
 
 `metro.config.js`:
 
@@ -138,11 +142,11 @@ eas.json                  # development / preview / production profiles
 | Lint | `npx expo lint` |
 | Unit tests | `npx jest` (preset `jest-expo`) |
 | Dependency health | `npx expo-doctor@latest` |
-| Upgrade SDK | `npx expo install expo@^58.0.0 --fix` then `npx expo-doctor@latest` |
+| Upgrade SDK | `npx expo install expo@^59.0.0 --fix` then `npx expo-doctor@latest` |
 | Regenerate native dirs | `npx expo prebuild --clean` |
 | Dev build (device) | `eas build -p ios --profile development` |
 | Production build | `eas build -p all --profile production` |
-| Ship JS-only fix | `eas update --branch production --message "fix: …"` |
+| Ship JS-only fix | `eas update --branch production --environment production --message "fix: …"` |
 | Submit to stores | `eas submit -p ios --latest` / `eas submit -p android --latest` |
 
 E2E: **Maestro** for flows (`maestro test .maestro/`). It is far less brittle than Detox on Expo and
@@ -195,8 +199,13 @@ your first ship on each store. Never promise a launch date that depends on a sam
    delete it inside the app. Not "email support."
 3. **5.1.1 — privacy.** Missing privacy policy URL, a Privacy Manifest that does not match what the
    SDKs actually collect, or a vague purpose string. "This app needs your location" is not a reason.
-4. **3.1.1 — payments.** Any digital good or subscription must go through IAP. Linking out to your
-   own checkout for in-app content is an instant rejection.
+4. **3.1.1 — payments.** Any digital good or subscription must go through IAP; linking out to your
+   own checkout for in-app content is a rejection. Storefront-specific exception: Apple's guidelines
+   3.1.1(a) and 3.1.3 let apps on the **United States storefront** include buttons, external links, or
+   calls to action to other purchase methods; other storefronts need a region-limited StoreKit External
+   Purchase Link Entitlement or forbid it. These rules move — the builder re-checks
+   `developer.apple.com/app-store/review/guidelines/` (and Google Play's payments policy) before
+   shipping any non-IAP path.
 5. **4.2 — minimum functionality.** Thin WebView wrappers and link collections.
 6. **4.8 — login.** Third-party social login as the primary account without an equivalent
    privacy-preserving alternative (Sign in with Apple satisfies this).
@@ -215,10 +224,10 @@ your first ship on each store. Never promise a launch date that depends on a sam
   surface as opaque Gradle or CocoaPods errors. The path is: `npx expo install expo@^<next> --fix`,
   then `npx expo-doctor@latest`, then read the SDK changelog. Same for adding any package with native
   code: `npx expo install <pkg>`, not `npm install <pkg>`.
-- **`react-native-gesture-handler` npm `latest` is 3.1.0; Expo SDK 57 pins `~2.32.0`.** GH 3.0 is a
-  rewrite with a new hook-based API. `npm install react-native-gesture-handler` gets you 3.x and a
-  broken build. Always `npx expo install`. Same trap class applies to `reanimated` (`latest` 4.5.3 vs
-  SDK pin 4.5.1) and `worklets` (`latest` 0.11.3 vs SDK pin 0.10.1).
+- **SDK 58 moved `react-native-gesture-handler` to 3.x (`~3.3.0`).** GH 3 adds the hook API
+  (`usePanGesture`, `useTapGesture`, …, plus `GestureDetector`) and keeps the old `Gesture` builder and
+  `Legacy*` components — read from the 3.3.0 published types. Code written for 2.x against SDK 57 must
+  be checked on upgrade. npm `latest` (3.4.0) is outside the SDK's `~3.3.0`, so always `npx expo install`.
 - **Reanimated 4 needs `react-native-worklets` as a separate install, and the babel plugin renamed.**
   It is `"react-native-worklets/plugin"`, not `"react-native-reanimated/plugin"`, and it must be the
   last entry in the plugins array. Reanimated 4.x also only runs on the New Architecture.
@@ -227,17 +236,24 @@ your first ship on each store. Never promise a launch date that depends on a sam
   extra runtime in *development*, costing up to ~4× bundle size per runtime. It does not affect
   production, where bytecode is used and extra runtimes are nearly free. If you hit it, develop on a
   device without a heavily constrained heap rather than disabling Bundle Mode.
-- **NativeWind stable is a Tailwind 3 library.** `nativewind@4.2.6` documents `tailwindcss@^3.4.17`.
-  NativeWind 5 (`5.0.0-preview.4`, requires Tailwind `>4.1.11` plus `react-native-css`) is preview
-  quality. In a monorepo that also has a Tailwind 4 web app, keep two separate Tailwind versions and
-  share only the *token file*, not the config.
-- **`expo-router` versioning changed.** It is now `~57.0.8` — lockstep with the SDK. Older docs
+- **NativeWind stable is a Tailwind 3 library.** `nativewind@4.2.7` depends on
+  `react-native-css-interop@0.2.7`, whose peer is `tailwindcss: ~3`. NativeWind 5 (`5.0.0-rc.0`,
+  requires Tailwind `>4.1.11` plus `react-native-css@3.1.0-rc.0`) is still a prerelease. In a monorepo
+  that also has a Tailwind 4 web app, keep two separate Tailwind versions and share only the *token
+  file*, not the config.
+- **`expo-router` versioning changed.** It is now `~58.0.23` — lockstep with the SDK. Older docs
   showing `expo-router@5` or `@6` describe SDK 53 and 54. Do not "upgrade" to a lower-looking number.
-- **`npx expo prebuild` now wipes `ios/` and `android/` by default** in SDK 57. Pass `--no-clean` to
+- **`npx expo prebuild` wipes `ios/` and `android/` by default** (since SDK 57; unchanged in SDK 58). Pass `--no-clean` to
   preserve them. If that matters to you, you have manual native edits that belong in a config plugin.
 - **Android edge-to-edge is enforced on Android 15+.** RN 0.86 improved handling, but you still owe
   every screen correct `SafeAreaView` / `useSafeAreaInsets` treatment or content sits under the system
   bars on modern devices.
+- **SDK 58 breaking changes that hit real apps** (Expo SDK 58 changelog): RN 0.87's Strict TypeScript
+  API is the default (deep `react-native/Libraries/*` imports are type errors; temporary opt-out via
+  `customConditions`, removed after RN 0.89); iOS now uses the UIScene lifecycle (prebuild generates
+  `SceneDelegate.swift`); Expo CLI forces `NODE_ENV` per command, so `.env.test` no longer loads under
+  `expo start`; R8 minification is on in Android release builds; `File.write()` is async; libSQL was
+  removed from expo-sqlite. Expo Go for SDK 58 is not yet in the stores — use a development build.
 - **iOS build minutes are the schedule risk.** EAS free-tier iOS queues can be long. For a team on a
   deadline, a paid plan or a self-hosted runner is a cost line item, not an optimization.
 - **Fully-native sub-track:** SwiftUI previews break constantly in large modules — keep view files
