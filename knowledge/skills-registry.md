@@ -2,8 +2,9 @@
 
 Maps Claude Code skills to The Architect's workflow and to blueprint sections.
 
-> **Verified / Verificado:** 2026-07-27. Every star count, license, and install command below was
-> read from the live GitHub API or from the repo's own README. Nothing is estimated.
+> **Verified / Verificado:** 2026-10-17. Every star count, license, and last-push date below was
+> read from the live GitHub API that day; every install command from the repo's own README or
+> plugin manifest. Nothing is estimated.
 
 **The bar / El criterio.** A skill is listed here only if it is (a) first-party or well-established,
 (b) licensed, (c) pushed recently, and (d) something we actually use. Exception: repos maintained by
@@ -22,13 +23,15 @@ Skills de la fase de diseño — las usa El Arquitecto durante la entrevista.
 
 | Skill | Phase | What it adds | Repo | ★ · license | Install |
 |-------|-------|-------------|------|------------|---------|
-| `/last30days` | 2 | What people actually said about a stack or niche **this month** — recency-scoped research instead of model memory | `mvanhorn/last30days-skill` | ★54.1k · MIT | `/plugin marketplace add mvanhorn/last30days-skill` |
-| `find-skills` | 2 | Discovers installable build-phase skills to name in the blueprint | `vercel-labs/skills` | ★27.4k · MIT | `npx skills add vercel-labs/skills --skill find-skills -g` |
-| `ui-ux-pro-max` | 3 | The concrete visual system — palette hexes, type scale, font pairing, component style | `nextlevelbuilder/ui-ux-pro-max-skill` | ★110.8k · MIT | `/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill`<br>`/plugin install ui-ux-pro-max@ui-ux-pro-max-skill` |
-| `emil-design-eng` | 3 | Motion and interaction architecture — easing, duration budgets, enter/exit behavior | `emilkowalski/skills` | ★21.6k · MIT | `npx skills@latest add emilkowalski/skills` |
-| `agent-browser` | 3 | Reference-site analysis + clean markdown extraction from any URL | `vercel-labs/agent-browser` | ★39.3k · Apache-2.0 | `npm install -g agent-browser`<br>`npx skills add vercel-labs/agent-browser` |
-| `browser-harness` | 3 | Escalation: drives your **real logged-in Chrome** when the reference site is behind auth | `browser-use/browser-harness` | ★16.3k · MIT | Paste the setup prompt from the repo README (uses `uv` + Python 3.12) |
-| `pdf` | 1 | Reads client-supplied spec PDFs, RFPs, and brand guides during discovery | `anthropics/skills` | ★164.6k · first-party | `/plugin marketplace add anthropics/skills`<br>`/plugin install document-skills@anthropic-agent-skills` |
+| `/last30days` | 2 | What people actually said about a stack or niche **this month** — recency-scoped research instead of model memory | `mvanhorn/last30days-skill` | ★64.6k · MIT | `/plugin marketplace add mvanhorn/last30days-skill`<br>`/plugin install last30days` |
+| `find-skills` | 2 | Discovers installable build-phase skills to name in the blueprint | `vercel-labs/skills` | ★35.3k · MIT | `npx skills add vercel-labs/skills --skill find-skills -g` |
+| `ui-ux-pro-max` | 3 | The concrete visual system — palette hexes, type scale, font pairing, component style | `nextlevelbuilder/ui-ux-pro-max-skill` | ★136.8k · MIT | `/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill`<br>`/plugin install ui-ux-pro-max@ui-ux-pro-max-skill` |
+| `emil-design-eng` | 3 | Motion and interaction architecture — easing, duration budgets, enter/exit behavior | `emilkowalski/skills` | ★46.9k · MIT | `npx skills@latest add emilkowalski/skills` |
+| `agent-browser` | 3 | Reference-site analysis + clean markdown extraction from any URL | `vercel-labs/agent-browser` | ★44.1k · Apache-2.0 | `npm install -g agent-browser`<br>`npx skills add vercel-labs/agent-browser` |
+| `browser-harness` | 3 | Escalation: drives your **real logged-in Chrome** when the reference site is behind auth | `browser-use/browser-harness` | ★18.5k · MIT | Paste the setup prompt from the repo README (uses `uv`; Python requirement per the upstream README) |
+| `pdf` | 1 | Reads client-supplied spec PDFs, RFPs, and brand guides during discovery | `anthropics/skills` | ★181.7k · proprietary (source-available, first-party) | `/plugin marketplace add anthropics/skills`<br>`/plugin install document-skills@anthropic-agent-skills` |
+| `claude-api` | 2–4 | Current Claude model IDs, pricing, API parameters, tool use, MCP and agent SDK reference — **read before writing any Claude model ID, price, or API parameter** | `anthropics/skills` | ★181.7k · Apache-2.0 (this skill) | Bundled with Claude Code — nothing to install. Elsewhere: `/plugin marketplace add anthropics/skills`<br>`/plugin install claude-api@anthropic-agent-skills` |
+| `/abogado-del-diablo` | 3 | Gate B adversarial pre-mortem — attacks the drafted architecture from eight angles before the confirmation gate | `Hainrixz/abogado-del-diablo` | ★36 · MIT · *tododeia* | `/plugin marketplace add Hainrixz/abogado-del-diablo`<br>`/plugin install abogado-del-diablo@abogado-del-diablo` |
 
 **Notes / Notas**
 
@@ -38,6 +41,15 @@ Skills de la fase de diseño — las usa El Arquitecto durante la entrevista.
 - `browser-harness` needs a human to tick `chrome://inspect/#remote-debugging` and click Allow on
   first run. It cannot run fully autonomously — prefer `agent-browser` unless the site needs your
   real session.
+- `claude-api` auto-activates on any Claude/Anthropic-shaped task; Claude Code's docs list it among
+  the **bundled skills** (`code.claude.com/docs/en/skills`, also callable explicitly as `/claude-api`
+  there). The `claude-api@anthropic-agent-skills` plugin name is read from the repo's
+  `.claude-plugin/marketplace.json`; the README documents the `/plugin install <plugin>@anthropic-agent-skills`
+  form. Fallback: `WebFetch` the vendor docs at `platform.claude.com/docs` — never write a model ID
+  or price from memory.
+- `/abogado-del-diablo` is a real slash command (README: "invoke it with `/abogado-del-diablo`";
+  `--proyecto` and `--demolicion` variants). Fallback: run the eight-angle pre-mortem inline from
+  `questions/phase-3-confirmation.md` — Gate B is mandatory, only the tool is optional.
 - `emil-design-eng` returns a generic pitch if invoked with no specific question. Always hand it a
   concrete one.
 - The Anthropic `document-skills` PDF skill covers extraction, manipulation, and forms — **not**
@@ -58,14 +70,14 @@ self-contained blueprint; naming a skill the builder cannot install breaks that 
 
 | Skill | Blueprint section | When to recommend | Repo | ★ · license | Install |
 |-------|------------------|-------------------|------|------------|---------|
-| `frontend-design` | Frontend Architecture, Build Order | Any project with a UI | `anthropics/skills` | ★164.6k · Apache-2.0 (this skill) | `/plugin marketplace add anthropics/skills`<br>`/plugin install example-skills@anthropic-agent-skills` |
-| `ui-ux-pro-max` | Design System, Build Order | Any project with a UI | `nextlevelbuilder/ui-ux-pro-max-skill` | ★110.8k · MIT | see §1 |
-| `emil-design-eng` | Frontend Architecture | Anything with meaningful motion or transitions | `emilkowalski/skills` | ★21.6k · MIT | `npx skills@latest add emilkowalski/skills` |
-| `playwright-cli` | Testing Strategy, Build Order | E2E testing is in scope | `microsoft/playwright-cli` | ★12.2k · Apache-2.0 | `npm install -g @playwright/cli@latest`<br>`playwright-cli install --skills` |
-| `agent-browser` | Build Order | Project needs web content extraction or browser automation | `vercel-labs/agent-browser` | ★39.3k · Apache-2.0 | see §1 |
-| `/claude-seo-ai:audit` `:geo` `:fix` `:score` | Deployment, Build Order | Marketing sites, content platforms, any public-facing surface. Covers classic SEO **and** the GEO/AEO axis — being citable by AI answer engines | `Hainrixz/claude-seo-ai` | ★29 · MIT · *tododeia* | `/plugin marketplace add Hainrixz/claude-seo-ai`<br>`/plugin install claude-seo-ai@claude-seo-ai`<br>`/reload-plugins` |
-| `/humanizalo` | Build Order (content step) | Project includes marketing copy or written content. Bilingual EN/ES | `Hainrixz/humanizalo` | ★82 · MIT · *tododeia* | `git clone https://github.com/Hainrixz/humanizalo.git ~/.claude/skills/humanizalo` |
-| `pdf` | Build Order | Project generates or parses PDFs | `anthropics/skills` | ★164.6k · first-party | see §1 |
+| `frontend-design` | Frontend Architecture, Build Order | Any project with a UI | `anthropics/skills` | ★181.7k · Apache-2.0 (this skill) | `/plugin marketplace add anthropics/skills`<br>`/plugin install example-skills@anthropic-agent-skills` |
+| `ui-ux-pro-max` | Design System, Build Order | Any project with a UI | `nextlevelbuilder/ui-ux-pro-max-skill` | ★136.8k · MIT | see §1 |
+| `emil-design-eng` | Frontend Architecture | Anything with meaningful motion or transitions | `emilkowalski/skills` | ★46.9k · MIT | `npx skills@latest add emilkowalski/skills` |
+| `playwright-cli` | Testing Strategy, Build Order | E2E testing is in scope | `microsoft/playwright-cli` | ★14.3k · Apache-2.0 | `npm install -g @playwright/cli@latest`<br>`playwright-cli install --skills` |
+| `agent-browser` | Build Order | Project needs web content extraction or browser automation | `vercel-labs/agent-browser` | ★44.1k · Apache-2.0 | see §1 |
+| `/claude-seo-ai:audit` `:geo` `:fix` `:score` | Deployment, Build Order | Marketing sites, content platforms, any public-facing surface. Covers classic SEO **and** the GEO/AEO axis — being citable by AI answer engines | `Hainrixz/claude-seo-ai` | ★75 · MIT · *tododeia* | `/plugin marketplace add Hainrixz/claude-seo-ai`<br>`/plugin install claude-seo-ai@claude-seo-ai`<br>`/reload-plugins` |
+| `/humanizalo` | Build Order (content step) | Project includes marketing copy or written content. Bilingual EN/ES | `Hainrixz/humanizalo` | ★93 · MIT · *tododeia* · **stale:** last push 2026-03-22 — re-check before recommending | `git clone https://github.com/Hainrixz/humanizalo.git ~/.claude/skills/humanizalo` |
+| `pdf` | Build Order | Project generates or parses PDFs | `anthropics/skills` | ★181.7k · proprietary (source-available, first-party) | see §1 |
 
 ---
 
@@ -120,7 +132,7 @@ Corregido y eliminado. One line each, so this is settled.
 
 | Previous entry | Verdict | Why | Now |
 |---------------|---------|-----|-----|
-| `/deep-research` | **REPLACED** | Pointed nowhere. The closest real skill is unlicensed and needs paid third-party API keys | `/last30days` (★54.1k, MIT, key-free) |
+| `/deep-research` | **REPLACED** | Pointed nowhere. The closest real skill is unlicensed and needs paid third-party API keys | `/last30days` (★64.6k, MIT, key-free) |
 | `/seo-audit` | **REPLACED** | Generic and stale — optimized for classic crawlers only. In 2026 the GEO/AEO axis is a first-class distribution channel | `/claude-seo-ai:audit` `:geo` `:fix` `:score` |
 | `/pdf-design` | **REPLACED** | The skill it referred to was superseded by its own maintainer and hardcodes Linux-only Chromium paths | `pdf` from `anthropics/skills` — first-party |
 | `/chrome-bridge-automation` | **REPLACED** | Merged away upstream on 2026-03-25; the skill no longer exists under that name | `agent-browser` (default), `browser-harness` (real-Chrome escalation) |

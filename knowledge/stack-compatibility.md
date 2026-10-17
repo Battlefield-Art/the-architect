@@ -3,7 +3,7 @@
 > The cross-axis check. A shape, a runtime track, and a capability each look fine on their own —
 > this file catches the combinations that only break once you put them together.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 **No version numbers live in this file.** Every combination below is stated as a *role* — "a
 full-stack React framework", "a typed SQL-shaped ORM", "a managed Postgres with built-in auth". What
@@ -36,7 +36,7 @@ folklore — see [Rules that expired](#rules-that-expired).
 
 | Combination | Composition | Track | Why it holds |
 |---|---|---|---|
-| **Default SaaS** | full-stack React framework · utility-CSS framework + copy-in component library · managed Postgres with auth, storage and row-level policies (Supabase) · hosted identity provider (Clerk) · Stripe · Vercel | `runtime-tracks/ts-node.md` | Deepest ecosystem, one language end to end, and every piece has a first-party adapter for the others. The default until something in the brief argues otherwise. |
+| **Default SaaS** | full-stack React framework · utility-CSS framework + copy-in component library · managed Postgres with storage and row-level policies (Supabase — **database and storage only; Supabase Auth stays off**) · hosted identity provider (Clerk) as the **one** session owner · Stripe · Vercel | `runtime-tracks/ts-node.md` | Deepest ecosystem, one language end to end, and every piece has a first-party adapter for the others. Clerk because multi-tenant orgs and invitations are built in (`capabilities/auth.md`); users are mirrored into Postgres by webhook. Want Supabase Auth instead? That is the Lean SaaS row — drop Clerk, never run both (see the two-identity-provider guard below). The default until something in the brief argues otherwise. |
 | **Lean SaaS** | same frontend · platform auth *instead of* a separate identity provider · merchant-of-record billing · Vercel | `runtime-tracks/ts-node.md` | Two fewer services and two fewer webhook syncs. The MoR owns sales tax, which is worth more than it looks to a solo founder. |
 | **API-first** | portable HTTP microframework · typed SQL-shaped ORM · serverless Postgres (Neon) · container PaaS (Railway, Render, Fly) | `runtime-tracks/ts-node.md` | No UI framework tax. The microframework runs unchanged on Node, Bun, and Workers, so the host stays a reversible decision. |
 | **Content / marketing** | islands static-site framework · headless CMS (Sanity, or git-committed MDX) · CDN-first host (Cloudflare Pages, Netlify) | `runtime-tracks/ts-node.md` | Ships zero JS by default, so Core Web Vitals are a starting condition rather than a project. |
@@ -77,7 +77,7 @@ Retired here so nobody re-adds them from memory. Each was checked against the ve
 | Retired rule | What is actually true | Source |
 |---|---|---|
 | "The full-featured ORM cannot run on Cloudflare Workers — use the SQL-shaped one" | It runs on Workers through driver adapters — Prisma Postgres, Neon, PlanetScale, D1, Turso, and plain Postgres with the Node-compatibility flag. The real constraints are *which driver* the runtime allows and the Workers bundle-size ceiling on the free plan, not the ORM. | `prisma.io/docs` — deploy to Cloudflare |
-| "WebSockets cannot work on a serverless host — it is serverless" | Vercel Functions serve WebSocket connections on Fluid compute; both a bare WebSocket server and Socket.IO work. The durable constraint is **state, not transport**: a connection pins to one instance, and reconnects are not guaranteed the same instance — so rooms, presence, and counters go in an external store. That constraint is in the known-bad table above, correctly scoped. | `vercel.com/docs/functions/websockets` |
+| "WebSockets cannot work on a serverless host — it is serverless" | Vercel Functions serve WebSocket connections on Fluid compute (**Beta** on all plans per Vercel's docs as of 2026-10-17 — re-check status before relying on it); both a bare WebSocket server and Socket.IO (WebSocket transport only) work. The durable constraint is **state, not transport**: a connection pins to one instance, and reconnects are not guaranteed the same instance — so rooms, presence, and counters go in an external store. That constraint is in the known-bad table above, correctly scoped. | `vercel.com/docs/functions/websockets` |
 | "Previous-major config patterns inside the current major" (the utility-CSS framework) | A version-transition trap, not a cross-axis conflict — it stops being true one major later, and it is invisible to a role-based rule. It belongs in the runtime track's Gotchas, where `knowledge/runtime-tracks/ts-node.md` already documents it (JS config file vs. CSS-first config). | this repo |
 
 ## Auth-to-database pairings

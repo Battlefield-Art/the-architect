@@ -2,7 +2,7 @@
 
 > A catalog of things people buy — browse, cart, checkout, pay, fulfil, return — built by a merchant, a brand team, or a marketplace operator.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## Is this your project?
 
@@ -44,7 +44,7 @@ Alternatives: `knowledge/runtime-tracks/rails-laravel.md` when the merchant back
 | Situation | Recommendation | Why |
 |---|---|---|
 | Physical goods, small team, standard flow | Hosted commerce platform's own storefront and theme | Cart, tax, fraud, address validation, promo stacking, returns, and a warehouse-ready admin already exist |
-| Digital goods sold worldwide, small team | Merchant of record (Lemon Squeezy, Paddle, Polar) | They become seller of record and own global VAT/GST — the biggest hidden cost of digital goods |
+| Digital goods sold worldwide, small team | Merchant of record (Paddle or Polar; Lemon Squeezy only after verifying it still onboards — see `knowledge/capabilities/payments-rails.md`) | They become seller of record and own global VAT/GST — the biggest hidden cost of digital goods |
 | Bespoke configurator, quote-to-cart, or commerce *is* the product | Build it | Nothing off the shelf models your pricing |
 | Marketplace with many sellers and split money | Build the platform, rent the rails (Stripe Connect or equivalent) | Onboarding, KYC, and payouts are not worth writing |
 

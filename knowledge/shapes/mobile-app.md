@@ -2,7 +2,7 @@
 
 > An app installed on a phone from the App Store or Play Store, shipped on a release train and gated by platform review.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## Is this your project?
 
@@ -43,16 +43,16 @@ Alternatives:
 | Observability | You cannot SSH into a user's phone — crash + event telemetry is the only debugger | `knowledge/capabilities/observability.md` |
 | Testing | Device-matrix E2E; unit tests for logic that can't be tapped | `knowledge/capabilities/testing.md` |
 | Accessibility | Screen readers and dynamic type are review-gated on both stores | `knowledge/capabilities/accessibility.md` |
-| Payments rails | Digital goods must use store IAP; physical goods must not | `knowledge/capabilities/payments-rails.md` |
+| Payments rails | Digital goods use store IAP (Apple's US storefront also allows external purchase links/buttons); physical goods must not | `knowledge/capabilities/payments-rails.md` |
 | Database | Only when composing with a backend of your own | `knowledge/capabilities/database.md` |
 
 ## Data model
 
 | Entity | Notes |
 |---|---|
-| `user` | Server identity. Never the source of truth for local UI state. |
+| `users` | Server identity (schema owned by `knowledge/capabilities/auth.md`). Never the source of truth for local UI state. |
 | `device` | One row per install: push token, platform, app version, locale, timezone. Push targeting reads this. |
-| `session` | Refresh token in the OS secure enclave/keystore — never in plain local storage. |
+| `sessions` | Server-side session/refresh state per `knowledge/capabilities/auth.md`; on the device the refresh token lives in the OS secure enclave/keystore — never in plain local storage. |
 | `<core entity>` | The thing the app is about. Needs `updated_at` and a client-generated ID so offline creates don't collide. |
 | `outbox` | Local-only. Queued mutations awaiting connectivity, with attempt count and last error. |
 | `notification_pref` | Per-category opt-in. One global toggle is not enough for review or for retention. |
@@ -121,7 +121,7 @@ Not build steps — every item here waits on hardware you must hold or a queue y
 
 - **Treating OTA as a release valve for everything.** JS and assets ship over the air; anything touching native code — a new SDK, a new permission, a new capability, an icon change — requires a store build. Decide *per change* and write the rule into the project's CLAUDE.md.
 - **Asking for permissions on first launch.** Cold-prompting for notifications or location tanks accept rates and reads as spammy to reviewers. Ask at the moment of value, and always after your own explainer screen.
-- **Charging for digital goods outside store IAP.** Apple and Google both reject this and it is the single most common rejection in this shape. Physical goods and real-world services are the opposite — those must *not* use IAP.
+- **Charging for digital goods outside store IAP.** Apple and Google both reject this and it is the single most common rejection in this shape. Storefront-specific exception: Apple's guidelines 3.1.1(a) and 3.1.3 let apps on the **United States storefront** include buttons, external links, or calls to action to other purchase methods; other storefronts need a region-limited StoreKit External Purchase Link Entitlement or forbid it. These rules move — the builder re-checks `developer.apple.com/app-store/review/guidelines/` (and Google Play's payments policy) before shipping any non-IAP path. Physical goods and real-world services are the opposite — those must *not* use IAP.
 - **Retrofitting deep links.** Universal/app links require domain verification files, entitlements, and a route table. Doing it at step 9 is fine; doing it after launch means broken shared URLs in the wild.
 - **Assuming iOS and Android agree.** Safe areas, keyboard avoidance, back gesture, notification channels, and permission semantics all differ. Test both on hardware — simulators lie about push, biometrics, camera, and health data.
 - **Shipping health data without the privacy paperwork.** Both stores require declaring health data collection; you may not use it for advertising, and misdeclaring is a rejection *and* a policy strike.

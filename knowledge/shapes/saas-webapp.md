@@ -2,7 +2,7 @@
 
 > A multi-user web app where people sign up, log in, and manage something that belongs to them — the default web shape, and the one most briefs collapse into.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## Is this your project?
 
@@ -63,6 +63,7 @@ Retrofitting orgs onto a single-tenant schema is a full rewrite of the data laye
 | Deployment | Environments, secrets, migrations on deploy | `knowledge/capabilities/deployment.md` |
 | Testing | Auth, tenancy isolation, and checkout are the regression hot spots | `knowledge/capabilities/testing.md` |
 | Observability | Errors and failed webhooks must page someone | `knowledge/capabilities/observability.md` |
+| Availability engine *(when booking/scheduling)* | Slots, buffers, time zones, and double-booking prevention are their own subsystem | `knowledge/capabilities/availability-engine.md` |
 
 Also pull in: `knowledge/capabilities/accessibility.md` (keyboard and contrast on the app shell, not just the landing page); `knowledge/capabilities/enterprise-readiness.md` when the brief mentions SSO, SAML, audit logs, or SOC 2; `knowledge/capabilities/sync-and-collab.md` when two people edit one record at once; `knowledge/capabilities/ai-llm-integration.md` for an AI feature inside an otherwise ordinary SaaS, plus `knowledge/capabilities/credit-metering.md` if it is metered; **`knowledge/capabilities/availability-engine.md` the moment the brief mentions booking, appointments, slots, availability, reschedules, or a shared calendar** — that is the single most-missed capability in this shape, because a booking brief reads like ordinary CRUD right up until timezones, double-booking, and cancellation policy arrive.
 
@@ -70,14 +71,14 @@ Also pull in: `knowledge/capabilities/accessibility.md` (keyboard and contrast o
 
 | Entity | Key fields | Notes |
 |---|---|---|
-| `user` | id, email, name, avatar, created_at | Mirror of the auth provider's user; never the source of truth for credentials |
-| `organization` | id, name, slug, plan, created_at | Multi-tenant only. Slug is URL-visible and immutable after first use |
-| `membership` | user_id, org_id, role, invited_by, accepted_at | Join table. Roles: owner, admin, member. Owner is non-removable |
-| `invitation` | org_id, email, role, token, expires_at | Multi-tenant only. Tokens expire and are single-use |
-| `subscription` | org_id (or user_id), provider_customer_id, provider_subscription_id, status, plan, current_period_end | Written by webhook, never by the UI |
+| `users` | id, external_auth_id, email, name, avatar_url, timestamps | Mirror of the auth provider's user; never the source of truth for credentials. Owned by `knowledge/capabilities/auth.md` |
+| `organizations` | id, name, slug, plan, timestamps | Multi-tenant only. Slug is URL-visible and immutable after first use |
+| `memberships` | user_id, org_id, role, status, invited_by, accepted_at | Join table, unique on (user_id, org_id). Roles: owner, admin, member. Owner is non-removable |
+| `invitations` | org_id, email, role, token_hash, expires_at, accepted_at | Multi-tenant only. Store the hash, never the plaintext token; tokens expire and are single-use |
+| `subscriptions` | org_id (or user_id), provider_customer_id, provider_subscription_id, status, plan, current_period_end | Written by webhook, never by the UI |
 | `<core entity>` | id, owner scope (`org_id` or `user_id`), created_by, timestamps | What the product is actually about; plus its one-to-many child (items, tasks, line items) |
 
-Rules: every tenant-owned table carries its scope column and an index on it; soft-delete the core entity (`deleted_at`) so undo is possible; store money as integer minor units; add an `audit_log` (actor, action, target, metadata) on day one when the buyer is a company.
+Rules: every tenant-owned table carries its scope column and an index on it; soft-delete the core entity (`deleted_at`) so undo is possible; store money as integer minor units; add `audit_events` (the one audit table, defined in `knowledge/capabilities/enterprise-readiness.md`) on day one when the buyer is a company. Tables are plural snake_case per `knowledge/capabilities/database.md`.
 
 ## Directory structure
 
@@ -107,18 +108,28 @@ Hard boundary: nothing in `components/` imports from `server/db/`. Data enters c
 
 1. **Scaffold + tooling** — create the project per the runtime track, wire linter, formatter, and CI. *Done when:* the track's lint, typecheck, and build commands all pass on a clean checkout in CI.
 2. **Design tokens + app shell** — palette, type scale, spacing, dark mode; empty marketing layout and empty app layout with sidebar/topbar. *Done when:* a viewport test asserts `document.documentElement.scrollWidth === clientWidth` on both layouts at 375px and 1440px, and a test fetching the raw server HTML with a dark-mode cookie set finds the dark theme class already on the root element in the first response — before any client script runs.
-3. **Database + tenancy decision** — model `user`, `organization`, `membership`, and the core entity with its scope column; run the first migration. *Done when:* migrations apply to an empty database and roll back cleanly; a seed script inserts two orgs with one user each.
+3. **Database + tenancy decision** — model `users`, `organizations`, `memberships`, and the core entity with its scope column; run the first migration. *Done when:* migrations apply to an empty database and roll back cleanly; a seed script inserts two orgs with one user each.
 4. **Auth** — signup, login, logout, password reset, session on the server, route protection. *Done when:* **WHEN** an anonymous request hits any `(app)` route **THE SYSTEM SHALL** redirect to sign-in and return to the original URL after login; signup auto-creates the personal org and its owner membership.
 5. **Tenancy guard + isolation tests** — one authorization helper every query and mutation calls. *Done when:* an automated test signs in as org A and receives 404 (not 403, not the record) for an org B record id, across list, detail, update, and delete.
 6. **Core entity CRUD** — create, list, detail, edit, soft-delete, end to end, one feature only. *Done when:* a fresh account can complete create → edit → delete from the UI, and each write is visible after a hard refresh.
 7. **Dashboard list view** — search, filter, sort, pagination, empty state, loading skeleton. *Done when:* one test asserts the empty state at 0 rows, a single row at 1, and exactly one page of rows plus a next-page control at 200+; a second asserts that reloading a filtered URL returns the same row ids in the same order.
 8. **Members + invitations** *(multi-tenant only)* — invite by email, accept flow, role changes, remove member. *Done when:* redeeming an invite token creates exactly one membership row and the second redemption of the same token returns an error creating none; a token past `expires_at` is rejected; and a `member` receives 403 on an owner-only action.
-9. **Billing** — plan map, checkout, customer portal, webhook handler with signature verification and idempotency. *Done when:* `stripe trigger checkout.session.completed` writes exactly one `subscription` row; replaying the same event changes nothing; an unsigned request returns 400.
+9. **Billing** — plan map, checkout, customer portal, webhook handler with signature verification and idempotency. *Done when:* `stripe trigger checkout.session.completed` writes exactly one `subscriptions` row; replaying the same event changes nothing; an unsigned request returns 400.
 10. **Entitlement gating** — plan limits enforced server-side, with an upgrade prompt in the UI. *Done when:* a free-plan account is blocked from exceeding its limit by the server even when the request is sent directly to the API, and the UI shows the upgrade path instead of an error toast.
 11. **Settings** — profile, org name/slug, billing management, account deletion with data export. *Done when:* deletion removes or anonymizes every row keyed to the account and the user cannot log back in.
 12. **Marketing surface** — landing page, pricing, metadata, OG image, sitemap, robots. *Done when:* every public route returns 200 with a unique title and description, and the sitemap lists exactly the public routes.
 13. **Hardening** — rate limits on auth and mutations, error boundaries, structured logging, error reporting. *Done when:* the 11th login attempt in a minute from one IP returns 429, and a deliberately thrown server error appears in the error reporter with a request id.
-14. **Deploy** — staging and production environments, secrets, migrations on release, custom domain. *Done when:* a merge to the main branch deploys and migrates automatically, and the signup → create → checkout path is completed once on production.
+14. **Deploy** — staging and production environments, secrets, migrations on release, custom domain. *Done when:* a merge to the main branch deploys and migrates staging automatically, and an E2E run against the staging URL — payment provider in **test mode**, test card — completes signup → create → checkout and exits 0.
+
+## Post-build launch checklist
+
+Not build steps — each needs live credentials, real money, or DNS you do not control, so none can gate an autonomous build.
+
+| Item | Why it cannot be a build gate | Start it |
+|---|---|---|
+| Promote to production and complete signup → create → checkout once with a real card, then refund it | Live-mode keys and a real charge — irreversible, and owned by a human | After step 14 passes on staging |
+| Custom domain and TLS live on production | DNS propagation runs on the registrar's schedule | With step 14 |
+| Payment provider account activation (business verification, payouts) | The provider's review queue, not code | Day one of the project |
 
 ## Pitfalls
 

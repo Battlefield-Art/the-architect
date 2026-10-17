@@ -2,7 +2,7 @@
 
 > Taking money reliably — choosing a billing model, deciding who owes the tax, and surviving webhooks that arrive twice, out of order, or not at all.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ## When a project needs this
 
@@ -53,7 +53,7 @@ Stripe wins on documentation, test-mode tooling, connected accounts for marketpl
 
 Two additional defaults:
 
-- **Mobile apps:** digital goods and in-app subscriptions must go through the store's in-app purchase system. Physical goods and real-world services must not. Use a subscription abstraction layer over both stores rather than writing receipt validation twice — details in `knowledge/shapes/mobile-app.md`.
+- **Mobile apps:** digital goods and in-app subscriptions go through the store's in-app purchase system by default (Apple's US storefront also permits external purchase links; other storefronts are narrower — re-check the store rules before shipping a non-IAP path). Physical goods and real-world services must not. Use a subscription abstraction layer over both stores rather than writing receipt validation twice — details in `knowledge/shapes/mobile-app.md`.
 - **Do not build your own billing UI.** Use the provider's hosted checkout and hosted customer portal until a concrete requirement forces you off them. Every hour spent on a bespoke card form is an hour spent enlarging your PCI scope.
 
 ## The webhook reliability problem
