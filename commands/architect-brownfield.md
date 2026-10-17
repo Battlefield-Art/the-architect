@@ -10,7 +10,7 @@ allowed-tools:
   - Bash
   - WebFetch
   - WebSearch
-  - Task
+  - Agent
   - Skill
   - AskUserQuestion
 ---
@@ -34,7 +34,7 @@ Read the skill first — the phases, the shapes, and the acceptance-criteria con
 | Entry | Existing repo in the cwd |
 | Deliverable | A **change blueprint** — feature, refactor, integration, or migration |
 | Shapes | Same files. They are stack-agnostic, so they describe a system that already exists just as well as one that does not. |
-| Output | Bundle or single file — **ask at phase-4 Step 2**, recommend bundle. Both land under `./blueprints/` in the repo. |
+| Output | Bundle or single file — derived and announced at phase-4 Step 2 (12 or more steps = bundle); an explicit user preference wins. Both land under `./blueprints/` in the repo. |
 | Gate | `blueprint-validator` must return **PASS** |
 
 ## Phase 0 — map the repo (this is the phase that does not exist in the greenfield flow)
@@ -97,7 +97,8 @@ authority on the tree):
 └── workspace/            # the builder copies this directory INTO the repo root
     ├── CLAUDE.md
     ├── AGENTS.md
-    └── .claude/{settings.json, skills/<name>/SKILL.md, rules/<name>.md}
+    ├── .claude/{settings.json, skills/<name>/SKILL.md, rules/<name>.md}
+    └── <verify-critical config>   # §19.6 — every config a §9 Verify needs, at its repo path
 ```
 
 In a brownfield repo `workspace/CLAUDE.md` and `workspace/AGENTS.md` **merge into** the repo's
@@ -125,7 +126,9 @@ gets **Section 9.1** or the validator fails it. Its six parts:
    approving the switch belongs in the post-build launch checklist, not in the build order.
 5. **Kill criteria** — the observable signal that says roll back now, expressed as a threshold a
    query or an alert rule can evaluate, plus the person on watch.
-6. **Decommission** — deleting the old path is a task with an id, not a someday.
+6. **Decommission** — an owned item on the post-build launch checklist, with its precondition and a
+   soak period that outlasts the build. Never a §9 step and never a `tasks.json` task: the build
+   gate is full cutover with the old path still deployed and revertible.
 
 ## Rules
 

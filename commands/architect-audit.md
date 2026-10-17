@@ -1,12 +1,16 @@
 ---
 description: Run the blueprint-validator against an existing blueprint and report PASS/FAIL with specifics. Blueprints written before v2 will FAIL — they have no acceptance criteria. That is expected, not a bug. / Audita un blueprint existente con el validador; los blueprints v1 fallan porque no tienen criterios de aceptación.
 argument-hint: "<path/to/blueprint.md | path/to/bundle/>"
+disallowed-tools:
+  - Write
+  - Edit
+  - NotebookEdit
 allowed-tools:
   - Read
   - Glob
   - Grep
   - Bash
-  - Task
+  - Agent
 ---
 
 # `/architect-audit` — validate an existing blueprint
@@ -38,8 +42,12 @@ uses the validator's own check names instead of invented ones.
 
 ## Run
 
-Dispatch `blueprint-validator` with the `Task` tool, handing it the resolved path. Do not grade the
-blueprint yourself — a second opinion from the same context is not a second opinion.
+Dispatch `blueprint-validator` with the Agent tool (formerly Task), handing it the resolved path. Do
+not grade the blueprint yourself while the subagent is available — a second opinion from the same
+context is not a second opinion. If dispatch fails, run the sweeps from
+`${CLAUDE_PLUGIN_ROOT}/agents/blueprint-validator.md` in the main thread, say so in one line, and label
+the verdict **self-audited** — see *Never hard-depend on a subagent* in
+`${CLAUDE_PLUGIN_ROOT}/questions/phase-4-generate.md`.
 
 ## Report
 

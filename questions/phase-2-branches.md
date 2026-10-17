@@ -503,10 +503,13 @@ differently when there is no human watching — CI, a pipe, a script?"
 and no colors. Secrets handling decides config file versus environment versus OS keychain.
 
 **MCP specifics.** If the answer to Q1 includes MCP, also settle: local stdio or remote HTTP, and if
-remote, how callers authenticate. On statefulness: the latest **ratified** MCP spec revision is
-stateful. A "stateless" revision exists only as an unratified draft, and its own compatibility notes
-say modern-only servers fail against currently deployed hosts. **Build dual-era and default to
-performing `initialize`.** Do not write that MCP went stateless.
+remote, how callers authenticate. On statefulness: the current MCP spec revision (`2026-07-28`) is
+stateless — every request carries its protocol version in `_meta`, there is no `initialize`
+handshake, and servers must implement `server/discover`. That modern revision is the baseline.
+Revisions up to `2025-11-25` are legacy and handshake-based, and its own compatibility matrix says a
+modern-only server fails against a legacy host. **Build dual-era:** serve modern per-request `_meta`
+requests statelessly, and still answer `initialize` for older hosts that send it. Check
+modelcontextprotocol.io/specification/versioning for the current revision before writing it down.
 
 **Capabilities to load**
 

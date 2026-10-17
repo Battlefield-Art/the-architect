@@ -10,7 +10,7 @@ allowed-tools:
   - Bash
   - WebFetch
   - WebSearch
-  - Task
+  - Agent
   - Skill
   - AskUserQuestion
 ---
@@ -35,7 +35,7 @@ Read the skill end to end, then execute the four phases exactly as written there
 | Entry | Greenfield — nothing exists yet |
 | Depth | Full 4-phase interview |
 | Question budget | Max 3 per message, conversational |
-| Output | Bundle or single file — **ask at phase-4 Step 2**, recommend bundle. Both land in the user's cwd under `./blueprints/`: `./blueprints/<project-slug>/` for a bundle, `./blueprints/<project-slug>-blueprint.md` for a single file. |
+| Output | Bundle or single file — derived and announced at phase-4 Step 2 (12 or more steps = bundle); an explicit user preference wins. Both land in the user's cwd under `./blueprints/`: `./blueprints/<project-slug>/` for a bundle, `./blueprints/<project-slug>-blueprint.md` for a single file. |
 | Gate | `blueprint-validator` must return **PASS** before you hand anything over |
 
 `${CLAUDE_PLUGIN_ROOT}/questions/phase-4-generate.md` Step 3 is the authority on the emitted tree —
@@ -70,11 +70,13 @@ that is `/architect-quick`.
 
 ## Subagents
 
-Dispatch these with the `Task` tool — do not do their work inline.
+Dispatch these with the Agent tool (formerly Task) — that is the preferred path. If dispatch fails,
+do the work in the main thread and say so in one line; see *Never hard-depend on a subagent* in
+`${CLAUDE_PLUGIN_ROOT}/questions/phase-4-generate.md`.
 
 | Agent | When | File |
 |---|---|---|
-| `stack-researcher` | Phase 3, once the track is chosen — verify every pin against the live registry | `${CLAUDE_PLUGIN_ROOT}/agents/stack-researcher.md` |
+| `stack-researcher` | Phase 4 Step 1 — verify every pin against the live registry | `${CLAUDE_PLUGIN_ROOT}/agents/stack-researcher.md` |
 | `blueprint-writer` | Phase 4 — compose the bundle from the confirmed architecture | `${CLAUDE_PLUGIN_ROOT}/agents/blueprint-writer.md` |
 | `blueprint-validator` | Phase 4, after writing — the gate | `${CLAUDE_PLUGIN_ROOT}/agents/blueprint-validator.md` |
 

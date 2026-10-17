@@ -9,7 +9,7 @@ allowed-tools:
   - Bash
   - WebFetch
   - WebSearch
-  - Task
+  - Agent
   - AskUserQuestion
 ---
 

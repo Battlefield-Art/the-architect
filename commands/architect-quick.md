@@ -10,7 +10,7 @@ allowed-tools:
   - Bash
   - WebFetch
   - WebSearch
-  - Task
+  - Agent
   - Skill
   - AskUserQuestion
 ---
@@ -30,7 +30,7 @@ Read the skill first — it is still the source of truth:
 |---|---|
 | Entry | Greenfield |
 | Depth | 3 questions, one message, then defaults |
-| Output | **Recommend single file** — quick mode implies a small build — and confirm it, because `${CLAUDE_PLUGIN_ROOT}/questions/phase-4-generate.md` **Step 2 is authoritative on emission mode**. This row is input to your recommendation, not the decision. Fold the confirmation into the architecture card in Flow step 3 so it costs no extra round. Confirmed single file → `./blueprints/<project-slug>-blueprint.md` in the user's cwd; bundle → `./blueprints/<project-slug>/`. |
+| Output | Derived and announced at `${CLAUDE_PLUGIN_ROOT}/questions/phase-4-generate.md` **Step 2, which is authoritative on emission mode** (12 or more steps = bundle); an explicit user preference wins. Quick builds usually land under the threshold, but the step count decides, not this row. Single file → `./blueprints/<project-slug>-blueprint.md` in the user's cwd; bundle → `./blueprints/<project-slug>/`. |
 | Gate | `blueprint-validator` must return **PASS** — speed does not buy an exemption |
 
 ## The three questions — ask all three in ONE message
@@ -48,7 +48,7 @@ Then stop asking. Everything else is a default you choose and **state out loud**
 
 | Decision | Default |
 |---|---|
-| Shape | Classify from the three answers using `${CLAUDE_PLUGIN_ROOT}/questions/phase-1-discovery.md`. Ambiguous → pick the closer one and say which and why. |
+| Shape | Classify from the three answers using `${CLAUDE_PLUGIN_ROOT}/questions/phase-1-discovery.md`. Ambiguous → pick the closer one, say why, and name the rejected alternative. |
 | Runtime track | The shape file's **Default runtime track**. Deviate only if Q3 forces it. |
 | Capabilities | The shape file's **Core capabilities** table, nothing extra. |
 | Pins | From the `stack-researcher` report produced in this session — it is authoritative. `${CLAUDE_PLUGIN_ROOT}/knowledge/runtime-tracks/<track>.md` is the fallback for any package the researcher did not resolve, and its unverified caveats carry through verbatim. Never write a pin from memory. |
@@ -61,17 +61,16 @@ Then stop asking. Everything else is a default you choose and **state out loud**
 2. Classify the shape. Read `${CLAUDE_PLUGIN_ROOT}/knowledge/shapes/<shape>.md` and its default
    runtime track. Check `${CLAUDE_PLUGIN_ROOT}/knowledge/stack-compatibility.md` for known-bad pairs.
 3. Print a **6-line architecture card** — shape, track, data store, auth, hosting, scope — and one
-   line naming the recommended output mode (single file). Ask for a single yes. This is Phase 3
-   compressed, not skipped: the user still signs off before you write, and that same yes is the
-   Step 2 emission-mode confirmation `phase-4-generate.md` requires. If they ask for a bundle
-   instead, take it and move on.
+   line naming the output mode the step count derives (phase-4 Step 2). Ask for a single yes. This is
+   Phase 3 compressed, not skipped: the user still signs off before you write. The yes approves the
+   architecture; it is not an emission-mode question. If they volunteer a mode preference, it wins.
 4. Dispatch `stack-researcher` to verify pins.
 5. Dispatch `blueprint-writer` to emit the blueprint from
    `${CLAUDE_PLUGIN_ROOT}/templates/blueprint-template.md`,
    `${CLAUDE_PLUGIN_ROOT}/templates/claude-md-template.md`,
    `${CLAUDE_PLUGIN_ROOT}/templates/tasks-schema.md`, and
    `${CLAUDE_PLUGIN_ROOT}/templates/epic-template.md`. Tell it the output mode explicitly — the one
-   the user confirmed in step 3, not the one you recommended. In single-file mode the workspace files (`CLAUDE.md`,
+   Step 2 derived, or the user's explicit preference. In single-file mode the workspace files (`CLAUDE.md`,
    `AGENTS.md`, `.claude/`) are fenced code blocks inside Section 19, not real files, and there is no
    `tasks.json` and no `epics/`. **`.claude/commands/` is never emitted in either mode.**
 6. Dispatch `blueprint-validator`. FAIL → fix and re-run. Do not narrate the failure as a caveat and
