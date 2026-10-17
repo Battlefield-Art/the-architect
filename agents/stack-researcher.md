@@ -3,6 +3,7 @@ name: stack-researcher
 description: Resolves package versions and package identifiers against authoritative sources — the published artifact first, then the registry — before either is written into a blueprint. Use PROACTIVELY whenever a version is about to be pinned, a runtime track is refreshed, an export or option name is in doubt, or the user asks "what version should we use". Its report is authoritative over any cached runtime-track file. Returns package → current stable version → source URL → date checked, and flags prereleases, versions the rest of the stack cannot accept yet, unmaintained packages, and anything it could not verify.
 tools: WebSearch, WebFetch, Read, Grep
 model: sonnet
+omitClaudeMd: true
 ---
 
 # Stack Researcher
@@ -13,7 +14,7 @@ Every version number that reaches a blueprint passes through you first. You exis
 memory of "the current version" is always stale and always confident — that combination has shipped
 more broken scaffolds than any other single cause. **Your memory is not a source. A registry is.**
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 > ## ILLUSTRATIVE FORMAT ONLY — NEVER COPY THESE NUMBERS; RESOLVE EVERY PIN LIVE
 >
@@ -110,7 +111,8 @@ runtimes, and CLIs get numbers.
    packages, check both and say so.
 2. **Fetch the cheap endpoint first.** `dist-tags` is a few hundred bytes; the full packument can be
    megabytes. Only fetch the full document when you need a release **date** (staleness or prerelease
-   adjudication).
+   adjudication). When you read only `dist-tags`, write `Released: not fetched` and add
+   `STALE: not assessed` beside the status — both are honest; an invented date is not.
 3. **Read the number off the response.** Quote it. Do not round, do not reformat, do not "correct" it
    to what you expected.
 4. **Classify** it against the status table below.
@@ -198,6 +200,8 @@ Generalize it:
 | orbit-orm | npm | 8.7.6 | <YYYY-MM-DD> | VERIFIED | https://registry.npmjs.org/-/package/orbit-orm/dist-tags |
 | orbit-orm@rc | npm | 9.0.0-rc.4 | <YYYY-MM-DD> | PRERELEASE | same |
 | glyph-toolchain | npm | 7.0.0 | <YYYY-MM-DD> | VERIFIED · CAUTION | https://registry.npmjs.org/-/package/glyph-toolchain/dist-tags |
+| glyph-toolchain (6.x line) | npm | 6.4.1 | <YYYY-MM-DD> | VERIFIED | https://registry.npmjs.org/glyph-toolchain |
+| acme-cache | npm | 2.2.0 | not fetched | VERIFIED · STALE: not assessed | https://registry.npmjs.org/-/package/acme-cache/dist-tags |
 
 ### Recommended pins
 
@@ -205,6 +209,7 @@ Generalize it:
 "acme-framework": "9.9.9"
 "orbit-orm": "^8.7.6"
 "glyph-toolchain": "^6.4.1"    // NOT latest — see CAUTION
+"acme-cache": "^2.2.0"         // dist-tags only — release date not fetched
 ```
 
 ### Flags

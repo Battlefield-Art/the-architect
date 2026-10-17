@@ -3,7 +3,7 @@
 > One epic = one self-contained execution unit. A fresh agent with **zero** context opens exactly
 > one epic file and can finish it without reading `blueprint.md`, another epic, or asking anything.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 Emitted in **bundle mode** (see `questions/phase-4-generate.md`):
 
@@ -80,7 +80,7 @@ What this template owns is the size of a *task*:
 
 | Rule | Value |
 |---|---|
-| Acceptance criteria per task | ≤ 6 (else split the task) |
+| Acceptance criteria per task | 2–6 (over 6, split the task) |
 | Files per task | ≤ 5 (else split the task) |
 
 **There is no line budget on an epic file.** An earlier version of this template capped it at
@@ -235,7 +235,7 @@ field for it.}
 
 **Acceptance**
 
-Copied verbatim from this task's `acceptance` array in `tasks.json`. Each one is decidable by a
+Copied from this task's `acceptance` array in `tasks.json` — identical after the emphasis normalization defined in `agents/blueprint-writer.md` *Acceptance strings*. Each one is decidable by a
 command below, on this machine, during the build.
 
 1. **WHEN** {trigger} **THE SYSTEM SHALL** {observable response}.
@@ -316,10 +316,10 @@ The task blocks here and the entries in `tasks.json` describe the same tasks. Wh
 | `id`, `dependencies`, `status`, task order | `tasks.json` | It is the graph; the epic is a view of it |
 | `verify` commands | `tasks.json` | The resume protocol executes them, and it executes the whole array |
 | Implementation direction, contracts, pitfalls | the epic file | It does not exist in `tasks.json` |
-| `acceptance` | must be **identical** — copy them, do not paraphrase | |
+| `acceptance` | must be identical after the emphasis normalization defined in `agents/blueprint-writer.md` *Acceptance strings* — copy them, do not paraphrase | |
 
 Paraphrasing acceptance criteria between the two files is the most common bundle defect. Copy the
-strings verbatim.
+strings; only the emphasis markers and list numbering may differ.
 
 Two corollaries worth stating outright:
 
