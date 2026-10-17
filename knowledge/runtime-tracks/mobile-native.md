@@ -87,13 +87,12 @@ module.exports = function (api) {
   api.cache(true);
   return {
     presets: [["babel-preset-expo", { jsxImportSource: "nativewind" }], "nativewind/babel"],
-    plugins: ["react-native-worklets/plugin"],
   };
 };
 ```
 
-`babel-preset-expo` 58 already adds `react-native-worklets/plugin` automatically when the package is
-installed, so the explicit entry above may register it twice — check for a duplicate before relying on it.
+No `plugins` entry for worklets: `babel-preset-expo` 58 adds `react-native-worklets/plugin` itself
+when `react-native-worklets` is installed (unless `worklets: false`). Listing it again registers it twice.
 
 `metro.config.js`:
 
@@ -229,8 +228,9 @@ your first ship on each store. Never promise a launch date that depends on a sam
   `Legacy*` components — read from the 3.3.0 published types. Code written for 2.x against SDK 57 must
   be checked on upgrade. npm `latest` (3.4.0) is outside the SDK's `~3.3.0`, so always `npx expo install`.
 - **Reanimated 4 needs `react-native-worklets` as a separate install, and the babel plugin renamed.**
-  It is `"react-native-worklets/plugin"`, not `"react-native-reanimated/plugin"`, and it must be the
-  last entry in the plugins array. Reanimated 4.x also only runs on the New Architecture.
+  It is `"react-native-worklets/plugin"`, not `"react-native-reanimated/plugin"`. `babel-preset-expo`
+  adds it for you (see the babel config above); list it yourself, as the last plugin, only without
+  that preset or with `worklets: false`. Reanimated 4.x also only runs on the New Architecture.
 - **The old Hermes + Reanimated 3 memory hang is dead — do not repeat it.** The current live memory
   caveat is different and much narrower: Worklets **Bundle Mode** re-evaluates the JS bundle on each
   extra runtime in *development*, costing up to ~4× bundle size per runtime. It does not affect

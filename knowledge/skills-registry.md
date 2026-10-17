@@ -41,7 +41,7 @@ Skills de la fase de diseño — las usa El Arquitecto durante la entrevista.
 - `browser-harness` needs a human to tick `chrome://inspect/#remote-debugging` and click Allow on
   first run. It cannot run fully autonomously — prefer `agent-browser` unless the site needs your
   real session.
-- `claude-api` auto-activates on any Claude/Anthropic-shaped task; Claude Code's docs list it among
+- `claude-api` auto-activates when the code imports the Anthropic SDK (per code.claude.com/docs/en/skills); Claude Code's docs list it among
   the **bundled skills** (`code.claude.com/docs/en/skills`, also callable explicitly as `/claude-api`
   there). The `claude-api@anthropic-agent-skills` plugin name is read from the repo's
   `.claude-plugin/marketplace.json`; the README documents the `/plugin install <plugin>@anthropic-agent-skills`

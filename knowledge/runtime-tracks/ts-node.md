@@ -46,7 +46,7 @@ Play Store (`mobile-native.md`).
 | Validation | `zod` | **4.6.7** | v4 is the current major. Schema-first everywhere: env, forms, API boundaries. |
 | Forms | `react-hook-form` | **7.90.0** | 8.x is still beta. |
 | Standalone HTTP server | `hono` | **4.13.13** | Plus `@hono/node-server` **2.1.5**, `@hono/zod-validator` **0.9.1**. Runs on Node, Bun, Workers, Deno. `hono@5` exists only as `5.0.0-rc.1` on the `next` tag — never pin `^5`. |
-| Auth (self-hosted) | `better-auth` | **1.7.10** | 1.7 is GA with schema-changing breaking changes from 1.6 (accounts keyed on `(issuer, accountId)`; joins moved to `advanced.database.joins`). New projects start on 1.7; existing 1.6 apps follow the 1.7 upgrade guide. 1.8 is beta. |
+| Auth (self-hosted) | `better-auth` | **1.7.10** | 1.7 is GA. Account rows stay keyed on `(providerId, accountId)` as in 1.6 (the `issuer` column from 1.7.0–1.7.2 was removed in 1.7.3; databases that ran those versions follow the 1.7 upgrade guide). Joins are configured at `advanced.database.joins`. 1.8 is beta. |
 | Auth (hosted) | `@clerk/nextjs` | **7.9.17** | |
 | BaaS | `@supabase/supabase-js` | **2.118.0** | Requires Node `>=22.0.0`. |
 | Payments | `stripe` | **23.0.0** | Pins API version `2026-09-30.endive`. |
@@ -356,7 +356,7 @@ from the vendor's docs. Everything after that is documentation- or changelog-sou
 - **Astro 7 has a Rust compiler that no longer forgives bad markup.** Unclosed non-void tags are now
   errors, and semantically invalid HTML is passed through as-is instead of being silently reordered.
   Expect a v6 → v7 migration to surface markup bugs that were previously invisible. It also requires
-  Node `>=22.12.0`.
+  Node `>=22.22.0`.
 - **TanStack Start is on the 1.x line** (currently 1.169.3) and moves fast. Pin the exact version and
   upgrade deliberately; do not describe any single release as the long-awaited stable milestone.
 - **The AI SDK's core and React packages are on different majors** (`ai` 7.x, `@ai-sdk/react` 4.x) but

@@ -4,7 +4,7 @@ Goal of this phase: decide **which of the 14 shapes** the project is, and whethe
 or a change to something that already exists. Nothing else. Stack, hosting, and libraries are Phase 2
 and Phase 3 — do not drift into them here.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ---
 

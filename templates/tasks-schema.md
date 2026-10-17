@@ -126,9 +126,9 @@ itself exits 0, with the expected code still visible:
 
 | Silently fails the gate forever | Correct — the line itself exits 0 |
 |---|---|
-| `"mytool --bad-flag"` | `"status=0; mytool --bad-flag || status=$?; test \"$status\" -eq 2"` |
-| `"mytool query no-such-tag"` | `"status=0; mytool query no-such-tag || status=$?; test \"$status\" -eq 1"` |
-| `"grep -q FIXME out.txt"` (expecting no match) | `"status=0; grep -q FIXME out.txt || status=$?; test \"$status\" -eq 1"` (2 = grep error, and that now fails) |
+| `"mytool --bad-flag"` | `"status=0; mytool --bad-flag \|\| status=$?; test \"$status\" -eq 2"` |
+| `"mytool query no-such-tag"` | `"status=0; mytool query no-such-tag \|\| status=$?; test \"$status\" -eq 1"` |
+| `"grep -q FIXME out.txt"` (expecting no match) | `"status=0; grep -q FIXME out.txt \|\| status=$?; test \"$status\" -eq 1"` (2 = grep error, and that now fails) |
 | `"curl -f localhost:3000/missing"` (expecting 404) | `"test \"$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/missing)\" = 404"` |
 
 Read every `verify` array top to bottom and ask, for a *correct* task, what status each line exits

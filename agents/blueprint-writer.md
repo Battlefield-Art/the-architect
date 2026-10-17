@@ -91,8 +91,10 @@ Anything not in that list, you do not have. Do not reconstruct it from vibes.
      nobody is awake to answer. **A rule matches each subcommand independently:** split every
      `Verify` and §20.1 line on `&&`, `||`, `;`, `|` and inside `$( )`, and give each subcommand its
      own exact `allow` entry unless it is a built-in read-only command (`ls`, `cat`, `grep`, `wc`,
-     read-only `git`). Never a bare interpreter, network tool, package-runner wildcard or `sh -c`
-     wildcard.
+     read-only `git`). `test`/`[` is not in the documented read-only set, so a strict expected-failure
+     gate (`status=0; cmd || status=$?; test "$status" -eq N`) needs `cmd`'s entry plus
+     `Bash(test:*)`; the bare assignments are not commands and take none. Never a bare
+     interpreter, network tool, package-runner wildcard or `sh -c` wildcard.
    - `workspace/.claude/skills/<name>/SKILL.md` — §19.4, when §19.4 defines any
    - `workspace/.claude/rules/<name>.md` — §19.5, when §19.5 defines any
    - **`workspace/<verify-critical config>` — §19.6.** Every config file a §9 `Verify` command needs
@@ -440,9 +442,9 @@ that block, forever, on every machine.
 
 | Silently fails the gate | Correct — the line itself exits 0 |
 |---|---|
-| `mytool --bad-flag`  `# expect: exit 2` | `status=0; mytool --bad-flag || status=$?; test "$status" -eq 2`  `# expect: exit code 2 → this line exits 0` |
-| `mytool query 'no-such-tag'`  `# expect: exit 1` | `status=0; mytool query 'no-such-tag' || status=$?; test "$status" -eq 1`  `# expect: exit code 1 → this line exits 0` |
-| `grep -q FIXME out.txt`  `# expect: no match` | `status=0; grep -q FIXME out.txt || status=$?; test "$status" -eq 1`  `# expect: 1 = no match → exits 0 · 2 = grep error, and that now fails` |
+| `mytool --bad-flag`  `# expect: exit 2` | `status=0; mytool --bad-flag \|\| status=$?; test "$status" -eq 2`  `# expect: exit code 2 → this line exits 0` |
+| `mytool query 'no-such-tag'`  `# expect: exit 1` | `status=0; mytool query 'no-such-tag' \|\| status=$?; test "$status" -eq 1`  `# expect: exit code 1 → this line exits 0` |
+| `grep -q FIXME out.txt`  `# expect: no match` | `status=0; grep -q FIXME out.txt \|\| status=$?; test "$status" -eq 1`  `# expect: 1 = no match → exits 0 · 2 = grep error, and that now fails` |
 | `curl -f localhost:3000/missing`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/missing)" = 404` |
 
 **Assert the code; never let the failure escape.** Keep the expected code visible — the point is not
@@ -478,9 +480,9 @@ failed.
 
 | Passes vacuously | Fails for the stated reason |
 |---|---|
-| `! git check-ignore -q a b`  `# expect: non-zero` | `status=0; git check-ignore -q a || status=$?; test "$status" -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and that now fails` |
-| `! mytool validate config.json` | `status=0; mytool validate config.json || status=$?; test "$status" -eq 1`  `# 1 = invalid · 2 = bad usage` |
-| `mytool --bad-flag; test $? -ne 0` | `status=0; mytool --bad-flag || status=$?; test "$status" -eq 2` |
+| `! git check-ignore -q a b`  `# expect: non-zero` | `status=0; git check-ignore -q a \|\| status=$?; test "$status" -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and that now fails` |
+| `! mytool validate config.json` | `status=0; mytool validate config.json \|\| status=$?; test "$status" -eq 1`  `# 1 = invalid · 2 = bad usage` |
+| `mytool --bad-flag; test $? -ne 0` | `status=0; mytool --bad-flag \|\| status=$?; test "$status" -eq 2` |
 | `! curl -f "$URL/missing"` | `test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/missing")" = 404` |
 
 **So: any gate whose success condition is a non-zero exit must distinguish the expected failure code
@@ -675,7 +677,7 @@ permission bit and the interpreter line are right, and that the two files agree.
 | Not a gate | A gate |
 |---|---|
 | `{pm} build`  `# expect: exit 0` | `{pm} build && ./dist/cli.js --version`  `# expect: exit 0, prints the version` |
-| "the package is publishable" | `npm pack && npm i --prefix ./.pack-smoke "$PWD/<tarball>" && ./.pack-smoke/node_modules/.bin/<bin> --help`  `# expect: exit 0 — local install, never -g; .pack-smoke/ is in the ignore file Bootstrap writes before the first commit` |
+| "the package is publishable" | `b=$(mktemp -d) && i=$(mktemp -d) && npm pack --pack-destination "$b" && npm i --prefix "$i" "$b/<tarball>" && "$i/node_modules/.bin/<bin>" --help`  `# expect: exit 0 — two temp dirs outside the repo (build, install) so undeclared deps cannot resolve from the repo's node_modules, as in cli-library-mcp.md; never -g; no rm -rf on a variable path — the OS reaps the temp dirs` |
 | "the server builds" | `curl -sf localhost:3000/health`  `# expect: exit 0, body {"ok":true}` |
 | "the image builds" | `docker run --rm <image> --version`  `# expect: exit 0` |
 

@@ -51,7 +51,7 @@ There is no "PASS with reservations". There is no partial credit.
 |---|---|---|
 | 1 | A build step with **no acceptance criteria** or **no verify command** | BLOCKER |
 | 2 | An acceptance criterion that is **not observable** — "works", "looks right", "works correctly", "is implemented", "is wired up", "is complete", "properly handles" | BLOCKER |
-| 3 | An **oversized step** — more than ~6 acceptance criteria, or touching more than ~5 files | MAJOR |
+| 3 | An **oversized step** — fewer than 2 or more than 6 acceptance criteria, or more than 5 files | MAJOR |
 | 4 | An **env var used but not documented** in Environment Setup | BLOCKER |
 | 5 | A **dangling reference** — a file, section, table, command, or step number mentioned but never defined | MAJOR |
 | 6 | A **skill named without an install command** | MAJOR |
@@ -243,6 +243,9 @@ in bundle mode the same vacuous gate is usually written three times and all thre
 one finding. #37 reads §10's Bootstrap and §9's step order, both of which exist in both modes.
 #38 reads §19.6's matrix against the emitted config bodies; #39 and #40 read §9 (plus `tasks.json`
 and the epics in bundle mode) — none of the three is ever mode-exempt.
+**Precedence:** a config missing a matrix setting is filed once as #38, not also #25; #40 needs a
+referent that exists but is empty or `NOT APPLICABLE` — a referent that does not exist is #5, not
+#40; a byte-exact mismatch stays #35, not #40.
 
 ---
 
@@ -585,7 +588,10 @@ report them as one finding with a list, not one finding each.
 independently: it splits on `&&`, `||`, `;`, `|`, `|&`, `&` and newlines, and checks commands inside
 `$( … )` too. So split every `Verify` line and every §20.1 line on those operators and inside `$( )`;
 **each subcommand needs its own `allow` entry unless it is a built-in read-only command** (`ls`,
-`cat`, `grep`, `wc`, read-only `git` and the like). `pnpm db:migrate && psql … | grep -qx t` covered
+`cat`, `grep`, `wc`, read-only `git` and the like). `test`/`[` is not in the documented read-only
+set: a strict expected-failure gate (`status=0; cmd || status=$?; test "$status" -eq N`) needs
+`cmd`'s entry plus `Bash(test:*)` — that entry present covers every such gate; the bare assignments
+are not commands and need none. `pnpm db:migrate && psql … | grep -qx t` covered
 by a `pnpm` entry alone still prompts on `psql` — #16. An allow entry that is a bare interpreter, a
 network tool, a package-runner wildcard or `sh -c`/`bash -c` wildcard approves arbitrary code — MAJOR
 under #16, with the exact command it should have named.

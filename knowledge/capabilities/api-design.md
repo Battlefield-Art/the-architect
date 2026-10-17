@@ -142,7 +142,7 @@ For a project whose deliverable *is* the server, see `knowledge/shapes/cli-libra
 | Table | Fields | Notes |
 |---|---|---|
 | `api_keys` | Defined in `knowledge/capabilities/auth.md` — the single owner. Do not redefine it here | Hash the secret, display once, make rotation possible |
-| `idempotency_keys` | key, org_id, endpoint, request_hash, response_body, status_code, created_at | Unique on (key, org_id). Replay the stored response on retry. Same table as `knowledge/capabilities/deployment.md`'s enqueue keys — `endpoint` is the scope |
+| `idempotency_keys` | key, org_id, endpoint, request_hash, response_body, status_code, created_at, expires_at | Unique on (key, org_id). Replay the stored response on retry. Same table as `knowledge/capabilities/deployment.md`'s enqueue keys — `endpoint` is the scope |
 | `webhook_endpoints` | id, org_id, url, secret, event_types, disabled_at | Outbound webhooks only |
 | `webhook_deliveries` | id, endpoint_id, event_id, status, attempts, next_retry_at, response_code | Retries with backoff, visible in a UI so support can answer "did it send?" |
 

@@ -3,7 +3,7 @@
 > One branch per shape. Ask the questions that change the blueprint, load the capability files the
 > answers point at, then go to Phase 3.
 
-Last verified: 2026-07-27
+Last verified: 2026-10-17
 
 ---
 

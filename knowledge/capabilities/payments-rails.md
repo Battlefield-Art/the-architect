@@ -11,7 +11,7 @@ Last verified: 2026-10-17
 - Access to a feature depends on what someone bought — entitlement gating is a payments problem, not a UI problem.
 - Money must reach a third party (a seller, a creator, a contractor) rather than staying with you.
 
-Skip only when the first release is genuinely free with no upgrade path. Add the `subscription` table anyway if a paid tier appears anywhere in the brief; retrofitting entitlements is worse than carrying an unused table.
+Skip only when the first release is genuinely free with no upgrade path. Add the `subscriptions` table anyway if a paid tier appears anywhere in the brief; retrofitting entitlements is worse than carrying an unused table.
 
 ## Decision matrix
 

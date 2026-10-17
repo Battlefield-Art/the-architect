@@ -73,7 +73,7 @@ There are two entry points, and the difference is real. Choose before you start.
 | | [`/architect-quick`](commands/architect-quick.md) | [`/architect`](commands/architect.md) |
 |---|---|---|
 | **Questions** | 3, in one message | 12–16, across 6–7 messages |
-| **How long, end to end** | ~10 minutes | ~40–60 minutes |
+| **How long, end to end** | ~15–25 minutes | ~40–60 minutes |
 | **Use it when** | You already know the stack, or the build is small and you mostly want the plan written down | You intend to hand the result to an autonomous builder and walk away |
 | **What you give up** | Smart defaults for everything you weren't asked | Nothing — but it costs you an hour |
 | **What you keep** | Both gates, EARS acceptance criteria, verify commands, the confirmation gate | Same |
@@ -89,9 +89,9 @@ Four phases. You talk, it designs, it generates.
 | Phase | What happens | What you do |
 |---|---|---|
 | **1. Discovery** | 2–3 questions. Classifies your project into one of **14 shapes**, and asks first whether this is new code or existing code. | Answer |
-| **2. Deep dive** | Shape-specific questions. Picks the runtime track and the capabilities. The `stack-researcher` subagent verifies every version against the live registries. | Answer 3–5 |
+| **2. Deep dive** | Shape-specific questions. Picks the runtime track and the capabilities. | Answer 3–5 |
 | **3. Architecture** | One dense message: stack table, how it fits together, what v1 includes and what it explicitly excludes, rough build phases. **Both gates run here.** | Confirm or adjust |
-| **4. Generate** | Picks bundle or single file from the step count and says which. Then: `blueprint-writer` composes, `blueprint-validator` audits until it returns PASS, files are written to `./blueprints/`. | Wait |
+| **4. Generate** | Picks bundle or single file from the step count and says which. Then: `stack-researcher` verifies every version against the live registries, `blueprint-writer` composes, `blueprint-validator` audits until it returns PASS, files are written to `./blueprints/`. | Wait |
 
 ### How long Phase 4 takes: 25–35 minutes, silently
 
@@ -450,7 +450,7 @@ Hay dos puntos de entrada y la diferencia es real. Elige antes de empezar.
 | | [`/architect-quick`](commands/architect-quick.md) | [`/architect`](commands/architect.md) |
 |---|---|---|
 | **Preguntas** | 3, en un solo mensaje | 12–16, en 6–7 mensajes |
-| **Cuánto tarda, de punta a punta** | ~10 minutos | ~40–60 minutos |
+| **Cuánto tarda, de punta a punta** | ~15–25 minutos | ~40–60 minutos |
 | **Úsalo cuando** | Ya sabes qué stack quieres, o el build es chico y solo quieres el plan por escrito | Vas a entregarle el resultado a un constructor autónomo y te vas a ir |
 | **Qué sacrificas** | Defaults inteligentes en todo lo que no te preguntó | Nada — pero te cuesta una hora |
 | **Qué conservas** | Los dos gates, criterios EARS, comandos de verificación, el gate de confirmación | Igual |
@@ -466,9 +466,9 @@ Cuatro fases. Tú hablas, él diseña, él genera.
 | Fase | Qué pasa | Qué haces tú |
 |---|---|---|
 | **1. Descubrimiento** | 2–3 preguntas. Clasifica tu proyecto en uno de los **14 shapes**, y pregunta primero si es código nuevo o código existente. | Respondes |
-| **2. Profundización** | Preguntas específicas del shape. Elige el runtime track y las capabilities. El subagente `stack-researcher` verifica cada versión contra los registros en vivo. | Respondes 3–5 |
+| **2. Profundización** | Preguntas específicas del shape. Elige el runtime track y las capabilities. | Respondes 3–5 |
 | **3. Arquitectura** | Un solo mensaje denso: tabla de stack, cómo encaja todo, qué incluye v1 y qué excluye explícitamente, fases de construcción. **Aquí corren los dos gates.** | Confirmas o ajustas |
-| **4. Generar** | Elige bundle o archivo único según el número de pasos y te dice cuál. Luego: `blueprint-writer` compone, `blueprint-validator` audita hasta dar PASS, los archivos se escriben en `./blueprints/`. | Esperas |
+| **4. Generar** | Elige bundle o archivo único según el número de pasos y te dice cuál. Luego: `stack-researcher` verifica cada versión contra los registros en vivo, `blueprint-writer` compone, `blueprint-validator` audita hasta dar PASS, los archivos se escriben en `./blueprints/`. | Esperas |
 
 ### Cuánto tarda la Fase 4: 25–35 minutos, en silencio
 

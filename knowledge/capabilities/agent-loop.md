@@ -67,7 +67,7 @@ Six invariants, all non-negotiable:
 3. **Every side-effecting tool carries an idempotency key**, generated from run id + step index + tool + a hash of the arguments, written before execution and honored by the downstream API. Retries are guaranteed; duplicates must not be.
 4. **The loop terminates on budget, always.** The model does not get to decide when to stop.
 5. **Status is a column, never inferred** from the presence of rows: `queued → running → awaiting_approval → succeeded | failed | cancelled | budget_exceeded`.
-6. **Replay history byte-faithfully.** With tool results, the provider requires the assistant's thinking blocks back complete and unmodified. Persist the raw provider response content blocks — thinking included — as the replay source, encrypted at rest. History is append-only: redact the trace/display copy, never the replay copy, and bound context with the provider's server-side compaction or context editing instead of rewriting earlier turns. Confirm the mechanics with `claude-api`.
+6. **Replay history byte-faithfully.** With tool results, the provider requires the assistant's thinking blocks back complete and unmodified. Persist the raw provider response content blocks — thinking included — as the replay source, encrypted at rest. History is append-only: redact the trace/display copy, never the replay copy, and bound context with the provider's server-side compaction or context editing instead of rewriting earlier turns. The unredacted replay copy exists only while the run can resume: purge or crypto-shred it when the run reaches a terminal state (or after a stated retention window), include it in deletion requests, let only the loop worker decrypt it, and keep its keys in a KMS, never next to the data. Confirm the mechanics with `claude-api`.
 
 ## Data model additions
 
@@ -107,7 +107,7 @@ Gate a tool when it spends money, sends external communication, deletes or overw
 Traces are the debugger. Without them, every incident is guesswork.
 
 - One trace per run, one span per step, with model id, prompt version, latency, tokens, and cost on every span.
-- The full transcript — messages, tool arguments, tool results — must be replayable from the database. Keep two copies: the encrypted, verbatim replay copy (invariant 6) and a trace/display copy with secrets redacted on write. Never redact or truncate the replay copy.
+- The full transcript — messages, tool arguments, tool results — must be replayable from the database. Keep two copies: the encrypted, verbatim replay copy (invariant 6) and a trace/display copy with secrets redacted on write. Never redact or truncate the replay copy; its retention and access rules are invariant 6.
 - Dashboards that earn their place: run success rate, p95 steps per run, p95 wall clock, cost per successful run, tool error rate by tool, approval wait time, and stuck-run count.
 - Alert on runs in `running` past their wall-clock budget and on any single tool's error rate spiking — those two catch most real failures.
 
@@ -136,7 +136,7 @@ Details in `knowledge/capabilities/observability.md`.
 - **Trusting tool output.** Tool results and retrieved documents are attacker-controlled text. An instruction inside a result must never trigger a gated tool.
 - **Retry storms.** Backoff with jitter, cap attempts, dead-letter the rest. Retrying every failed step immediately turns a provider blip into an outage.
 - **Non-deterministic code inside a durable engine's replayed path.** Wall-clock reads, random values, and direct network calls in replayed code produce impossible-to-reproduce bugs. Keep them in activities, not in workflow code.
-- **Secrets in persisted tool arguments.** Traces are read by support staff. Redact the trace copy at write time; the replay copy stays verbatim, encrypted, and off support's screens.
+- **Secrets in persisted tool arguments.** Traces are read by support staff. Redact the trace copy at write time; the replay copy stays verbatim, encrypted, off support's screens, and shredded once the run is terminal (invariant 6).
 - **Editing history before replay.** Redacting, truncating, or reordering earlier turns corrupts the thinking blocks the provider expects back unchanged — the next call errors or silently loses its reasoning.
 - **No stuck-run detection.** Runs quietly wedged in `running` are invisible until a customer asks; the sweeper is not optional.
 

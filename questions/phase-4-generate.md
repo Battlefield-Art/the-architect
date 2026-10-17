@@ -3,7 +3,7 @@
 > Say how long it will take, verify versions, decide the output format, compose, validate, write to
 > the user's directory, hand off.
 
-Last verified: 2026-07-28
+Last verified: 2026-10-17
 
 **Paths in this file:** every bare path (`templates/…`, `knowledge/…`, `questions/…`) is relative to
 the plugin root — open it as `${CLAUDE_PLUGIN_ROOT}/<path>`. The one exception is `./blueprints/`,
@@ -17,8 +17,8 @@ anything is written), and when the same validator finding or smoke-test command 
 Every step below carries a *Done when* — you do not advance past a step whose condition you cannot
 observe.
 
-**You are the only participant in Phase 4 with a shell.** `blueprint-writer` has `Read, Write, Glob,
-Grep`; `blueprint-validator` has `Read, Grep`. Neither can run a command. Every instruction anywhere
+**You are the only participant in Phase 4 with a shell.** `blueprint-writer` has `Read, Write, Edit,
+Glob, Grep`; `blueprint-validator` has `Read, Grep`. Neither can run a command. Every instruction anywhere
 in this plugin that says a block must be *executed* before shipping — `templates/blueprint-template.md`
 §10 Bootstrap, `knowledge/stack-compatibility.md` — resolves to **you, in Step 6**. If you do not run
 it, nobody does.

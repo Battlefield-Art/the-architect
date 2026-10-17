@@ -42,7 +42,7 @@ Rules: browsers get cookies, never tokens in `localStorage`. Native and machine 
 
 ## Recommendation
 
-**Default to Clerk for a multi-tenant SaaS, and to Supabase Auth when the project is already on Supabase.** The work in auth is never the login form; it is the long tail — password reset, email change, account linking, MFA enrollment and recovery, bot signups, session revocation, breached-password checks. Hosted providers ship that tail on day one, and it is worth real money not to build it.
+**Default to Clerk for a multi-tenant SaaS, and to Supabase Auth when the project is already on Supabase and org needs are light (the Lean SaaS row). When both apply, multi-tenancy wins: Clerk owns sessions and Supabase Auth stays off.** The work in auth is never the login form; it is the long tail — password reset, email change, account linking, MFA enrollment and recovery, bot signups, session revocation, breached-password checks. Hosted providers ship that tail on day one, and it is worth real money not to build it.
 
 Deviate when:
 - **Per-MAU cost breaks the model** (huge free tier, consumer scale) → Better Auth, self-hosted.
@@ -92,7 +92,7 @@ Decide the collision policy up front: when a social login returns an email that 
 
 | Table | Fields | Notes |
 |---|---|---|
-| `users` | id, external_auth_id, email, name, avatar_url, timestamps | Mirror when the provider owns identity; source of truth when you do. Unique index on `external_auth_id` |
+| `users` | id, external_auth_id, email, name, avatar_url, status (active/deactivated — offboarding and SCIM deactivate), timestamps | Mirror when the provider owns identity; source of truth when you do. Unique index on `external_auth_id` |
 | `sessions` | id, user_id, expires_at, ip, user_agent, revoked_at | Self-hosted only. Enables device list and remote sign-out |
 | `organizations` | id, name, slug, plan, data_region, timestamps | Only if multi-tenant. Slug is immutable once public. `plan` and `data_region` stay null until billing or residency applies |
 | `memberships` | id, user_id, org_id, role, status, invited_by, accepted_at, timestamps | Roles live here. Unique on (user_id, org_id). `role` is a text column at rungs 1–2, a `role_id` to `roles` at rung 3 |

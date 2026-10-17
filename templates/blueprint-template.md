@@ -521,9 +521,9 @@ work that does not run.
 
     | Silently fails the gate | Correct — the line itself exits 0 |
     |---|---|
-    | `mytool --bad-flag`  `# expect: exit 2` | `status=0; mytool --bad-flag || status=$?; test "$status" -eq 2`  `# expect: exit code 2 → this line exits 0` |
-    | `mytool query 'no-such-tag'`  `# expect: exit 1, no results` | `status=0; mytool query 'no-such-tag' || status=$?; test "$status" -eq 1`  `# expect: exit code 1 → this line exits 0` |
-    | `grep -q FIXME out.txt`  `# expect: no match` | `status=0; grep -q FIXME out.txt || status=$?; test "$status" -eq 1`  `# expect: 1 = no match → exits 0 · 2 = grep error, and that now fails` |
+    | `mytool --bad-flag`  `# expect: exit 2` | `status=0; mytool --bad-flag \|\| status=$?; test "$status" -eq 2`  `# expect: exit code 2 → this line exits 0` |
+    | `mytool query 'no-such-tag'`  `# expect: exit 1, no results` | `status=0; mytool query 'no-such-tag' \|\| status=$?; test "$status" -eq 1`  `# expect: exit code 1 → this line exits 0` |
+    | `grep -q FIXME out.txt`  `# expect: no match` | `status=0; grep -q FIXME out.txt \|\| status=$?; test "$status" -eq 1`  `# expect: 1 = no match → exits 0 · 2 = grep error, and that now fails` |
     | `curl -f localhost:3000/missing`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000/missing)" = 404` |
 
     **Assert the code; never let the failure escape.** The expected code stays visible in the
@@ -635,7 +635,7 @@ work that does not run.
        | Depends on the Checkpoint | Independent restatement |
        |---|---|
        | `git ls-files --error-unmatch LICENSE` | `test -f LICENSE` — the file exists on disk |
-       | `test -z "$(git status --porcelain)"` | `status=0; git check-ignore -q LICENSE || status=$?; test "$status" -eq 1` — 1 = not ignored; nothing will swallow it at commit time |
+       | `test -z "$(git status --porcelain)"` | `status=0; git check-ignore -q LICENSE \|\| status=$?; test "$status" -eq 1` — 1 = not ignored; nothing will swallow it at commit time |
        | "the working tree is clean" | `diff -u expected/report.txt out/report.txt` — the output matches what this step promised, which is the real requirement |
        | `git show <own tag>:config.json` | `cat config.json \| jq -e '.name == "…"'` |
 
@@ -732,9 +732,9 @@ work that does not run.
 
     | Passes vacuously | Fails for the stated reason |
     |---|---|
-    | `! git check-ignore -q a b`  `# expect: non-zero` | `status=0; git check-ignore -q a || status=$?; test "$status" -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and now that fails` |
-    | `! mytool validate config.json`  `# expect: invalid` | `status=0; mytool validate config.json || status=$?; test "$status" -eq 1`  `# 1 = invalid · 2 = bad usage` |
-    | `mytool --bad-flag; test $? -ne 0` | `status=0; mytool --bad-flag || status=$?; test "$status" -eq 2` |
+    | `! git check-ignore -q a b`  `# expect: non-zero` | `status=0; git check-ignore -q a \|\| status=$?; test "$status" -eq 1` and the same line for `b`  `# 1 = not ignored · 128 = usage, and now that fails` |
+    | `! mytool validate config.json`  `# expect: invalid` | `status=0; mytool validate config.json \|\| status=$?; test "$status" -eq 1`  `# 1 = invalid · 2 = bad usage` |
+    | `mytool --bad-flag; test $? -ne 0` | `status=0; mytool --bad-flag \|\| status=$?; test "$status" -eq 2` |
     | `! curl -f "$URL/missing"`  `# expect: 404` | `test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/missing")" = 404` |
 
     **The rule:** any gate whose success condition is a **non-zero** exit must either **assert the
@@ -1523,7 +1523,9 @@ section, a half-substituted JSON file fails invisibly at runtime.
 first word of `pnpm db:migrate && psql … | grep -qx t` approves none of the rest. Split every `Verify`
 line and every §20.1 line on those operators and inside `$( )`; **each subcommand needs its own
 `allow` entry unless it is a built-in read-only command** (`ls`, `cat`, `grep`, `wc`, `diff`,
-read-only `git` — see the permissions docs for the exact set).
+read-only `git` — see the permissions docs for the exact set). `test`/`[` is not in that documented
+set, so the strict expected-failure form `status=0; cmd || status=$?; test "$status" -eq N` needs
+`cmd`'s entry plus the `Bash(test:*)` entry below; the bare assignments are not commands.
 
 **Allow each exact `Verify` command, never a capability.** No bare interpreter (`Bash(node:*)`,
 `Bash(python:*)`), no network tool (`Bash(curl:*)` — scope it to the localhost command the gate runs),
@@ -1544,6 +1546,7 @@ isolation is the sandbox; say so in §14 if this project's secrets need more tha
       "Bash({pm} lint:*)",
       "Bash({pm} build)",
       "Bash({pm} dev:*)",
+      "Bash(test:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",

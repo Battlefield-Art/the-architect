@@ -119,7 +119,7 @@ Hard boundary: nothing in `components/` imports from `server/db/`. Data enters c
 11. **Settings** — profile, org name/slug, billing management, account deletion with data export. *Done when:* deletion removes or anonymizes every row keyed to the account and the user cannot log back in.
 12. **Marketing surface** — landing page, pricing, metadata, OG image, sitemap, robots. *Done when:* every public route returns 200 with a unique title and description, and the sitemap lists exactly the public routes.
 13. **Hardening** — rate limits on auth and mutations, error boundaries, structured logging, error reporting. *Done when:* the 11th login attempt in a minute from one IP returns 429, and a deliberately thrown server error appears in the error reporter with a request id.
-14. **Deploy** — staging and production environments, secrets, migrations on release, custom domain. *Done when:* a merge to the main branch deploys and migrates staging automatically, and an E2E run against the staging URL — payment provider in **test mode**, test card — completes signup → create → checkout and exits 0.
+14. **Deploy** — staging and production environments, secrets, migrations on release, custom domain. *Done when:* a CI-config check exits 0 (the workflow file parses and its jobs run lint, typecheck, test, migrate and build), and an E2E run against a local production build — payment provider in **test mode** with keys from `.env`, test card — completes signup → create → checkout and exits 0.
 
 ## Post-build launch checklist
 
@@ -127,7 +127,8 @@ Not build steps — each needs live credentials, real money, or DNS you do not c
 
 | Item | Why it cannot be a build gate | Start it |
 |---|---|---|
-| Promote to production and complete signup → create → checkout once with a real card, then refund it | Live-mode keys and a real charge — irreversible, and owned by a human | After step 14 passes on staging |
+| Staging auto-deploys and migrates on merge to the main branch, and the step 14 E2E passes against the staging URL | Needs a git remote, a CI runner and a hosting account the build machine cannot provision | After step 14 |
+| Promote to production and complete signup → create → checkout once with a real card, then refund it | Live-mode keys and a real charge — irreversible, and owned by a human | After staging passes (row above) |
 | Custom domain and TLS live on production | DNS propagation runs on the registrar's schedule | With step 14 |
 | Payment provider account activation (business verification, payouts) | The provider's review queue, not code | Day one of the project |
 
