@@ -9,14 +9,87 @@ MAJOR bump in a repo with no code.
 
 ## [Unreleased]
 
+Nothing yet.
+
+---
+
+## [2.6.0] — 2026-10-17
+
+A full-repo correctness pass, read area by area by parallel reviewers, every fix re-checked by
+independent code, fact and security reviews that tried to refute it. Every runtime-track pin was
+re-verified live. No declared path, command, section number or `tasks.json` field changed.
+
 ### Added
 
-- **GitHub social preview card** — `assets/social-preview.jpg`. It is consumed by the repository's
-  Settings → Social preview, never by markdown.
-- **CI: "Every image resolves, is used, and has alt text."** A seventh check in
-  `.github/workflows/validate.yml` that fails on a dangling `assets/` reference, an asset committed
-  but referenced nowhere, or an image with no alt text. `assets/social-preview.jpg` is exempt from
-  the orphan assertion by exact path, because GitHub reads it from Settings rather than from a file.
+- **Validator findings #38–#40 (BLOCKER) with Sweeps 28–30.** Three writer rules claimed validator
+  enforcement that did not exist: the §19.6 resolution-convention matrix (#38), a runtime check of
+  something erased at runtime (#39), and a step drawing its contract from a `NOT APPLICABLE` section
+  (#40). `blueprint-validator` now has 40 findings and Sweeps 0–30.
+- **Four CI checks.** Every scanned path exists; manifest versions agree and the CHANGELOG carries the
+  release (heading and link); shape "No if" edges are reciprocal and every capability sits in some
+  shape's Core table; every version-scan pattern compiles **and** matches a positive canary while
+  known-clean strings stay clean.
+- **Registry rows** for `claude-api` and `/abogado-del-diablo` — both were referenced and neither was
+  listed — and the missing second install line for `/last30days`.
+- **Agent frontmatter for current Claude Code.** `blueprint-validator` runs on `opus` at
+  `effort: high`; the validator and `stack-researcher` set `omitClaudeMd: true` so a user's
+  CLAUDE.md cannot colour an independent audit; `blueprint-writer` gains `Edit` for fix loops.
+- GitHub social preview card (`assets/social-preview.jpg`) and the image check (resolves, used,
+  alt text) — landed after 2.5.0.
+
+### Changed
+
+- **Expected-failure gates use the strict form** `status=0; cmd || status=$?; test "$status" -eq N`.
+  The previous recommendation, `cmd; test $? -eq N`, aborts under `set -e` before `test` runs, and a
+  mid-block `! cmd` fails silently under `set -e`. Finding #36 now files both. Strict gates need a
+  `Bash(test:*)` allow entry, which the §19.3 skeleton carries. **Bundles from 2.5.0 that use the
+  old forms will draw #36 from `/architect-audit`.**
+- **Claude Code renamed the Task tool to Agent.** Dispatch text and `allowed-tools` say Agent, and the
+  plugin-namespaced subagent types (`the-architect:*`) are named.
+- **The emission mode is derived and announced everywhere**, never asked — seven passages still
+  described a question Phase 4 forbids.
+- **MCP:** the current revision (2026-07-28) is stateless with `server/discover`; blueprints build
+  dual-era for hosts that still send `initialize`, and the gates prove both.
+- **Claude API guidance** matches today's platform: non-default sampling parameters are rejected,
+  cache prefixes run tools → system → messages, refusals are HTTP 200 with `stop_reason: "refusal"`,
+  forced tool choice is rejected on some models, thinking blocks are replayed unmodified. Model IDs
+  and prices still defer to the `claude-api` skill.
+- **Runtime tracks re-verified 2026-10-17**, all five. New majors landed for pnpm, Vitest, Stripe, the
+  Expo SDK and React Native, the Python `anthropic` and `openai` SDKs (now on `httpx2`), Go, Echo,
+  Bubble Tea and Pest — the numbers live in `knowledge/runtime-tracks/`, as always.
+- **Table names are plural everywhere**, with `auth.md` owning users, organizations, memberships,
+  invitations and API keys, and `audit_events` as the audit table.
+- The worked Step 7 example (template and README) now obeys the template's own caps and gates on
+  replayed fixtures; live `stripe trigger` runs moved to the launch checklist.
+- Settings guidance: one allow entry per subcommand of a compound command, never a bare
+  interpreter or package runner, and deny rules are not a sandbox.
+- CI: `actions/checkout@v7` without persisted credentials, a job timeout, and a manifest check that
+  fails instead of skipping when the CLI cannot be fetched.
+
+### Fixed
+
+- **Phase 4 asked before overwriting an existing blueprint only after the writer had already
+  saved over it.** The check now runs in Step 3, before anything is written.
+- `ts-node`: better-auth 1.7 keys accounts on `(providerId, accountId)` — an `issuer` column
+  existed only in 1.7.0–1.7.2. Prisma is pinned exactly because npm `latest` is an RC;
+  `@vitejs/plugin-react-oxc` is gone (deprecated, rejects the current Vite major).
+- `go`: `go mod init` writes the full toolchain version; the documented "previous minor" default was
+  reverted in a patch release. `mobile-native`: the Node-floor claim named the wrong React Native release, and
+  gesture-handler 3 is now the SDK pin.
+- Apple's US-storefront external-purchase exception; guideline 4.8 stated accurately; Auth.js is
+  maintained by the Better Auth team and new projects start on Better Auth.
+- `availability-engine` and `realtime-voice` were unreachable (in no shape's Core table).
+- Build steps that needed a live IdP, production, or a human now run against stubs or move to the
+  launch checklist; manual-check escape hatches in `verify` are gone.
+- CHANGELOG entries for 2.0.1 through 2.5.0, which shipped without them.
+
+### Security
+
+- The agent-loop replay copy, kept unredacted so thinking blocks replay intact, is encrypted at rest,
+  decryptable only by the loop worker, and purged when the run can no longer resume.
+- `/architect-audit` no longer pre-approves Bash and disallows Write/Edit, matching its read-only
+  claim.
+- The pack smoke test installs into temp directories outside the repo, never globally.
 
 ---
 
@@ -31,8 +104,8 @@ passed, working product tested from the installed package.
   example must agree with the blueprint's own data model, and must not quote a message only the
   pinned runtime could produce. Writer obligation plus validator finding #35 / Sweep 25.
 - **Rule Q — a gate must fail for the right reason.** A gate whose pass condition is "any non-zero
-  exit" is satisfied by a usage error. The strict form is `status=0; cmd || status=$?; test
-  "$status" -eq N`, which also survives `set -e`; `! cmd` is banned as a gate. Finding #36 / Sweep 26.
+  exit" is satisfied by a usage error, so a gate must distinguish the expected failure code from a
+  usage error (`cmd; test $? -eq N` in this release's examples). Finding #36 / Sweep 26.
 - **Rule R — the ignore file precedes the command it governs.** An ignore file or governing config
   written after the command it changes is a finding (BLOCKER when the effect, such as git tracking,
   is irreversible). Finding #37 / Sweep 27.
@@ -404,7 +477,8 @@ First public release.
 - Corrected the `pdf` skill's description — it does extraction, manipulation, and forms, not visual
   design.
 
-[Unreleased]: https://github.com/Hainrixz/the-architect/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/Hainrixz/the-architect/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/Hainrixz/the-architect/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/Hainrixz/the-architect/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Hainrixz/the-architect/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/Hainrixz/the-architect/compare/v2.2.0...v2.3.0
