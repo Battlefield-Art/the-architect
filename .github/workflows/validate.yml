@@ -1,5 +1,5 @@
-# Guardrails for the v2 architecture. Deliberately small: three greps and a manifest check,
-# no third-party actions, nothing to keep up to date.
+# Guardrails for the v2 architecture. Deliberately plain: greps, two short Python checks and a
+# manifest check — no third-party actions beyond checkout, no dependencies to keep up to date.
 name: validate
 on:
   push: { branches: [main] }
@@ -9,16 +9,38 @@ permissions: { contents: read }
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       SURFACE: knowledge commands agents skills questions templates CLAUDE.md README.md
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
+        with:
+          # The manifest step below runs npm code; it has no business holding the repo token.
+          persist-credentials: false
+
+      - name: Every scanned path exists
+        run: |
+          # Every grep below ends in `|| true`, because "no matches" is the passing case. That also
+          # swallows grep's exit 2, so a renamed directory in SURFACE would be skipped with a warning
+          # on stderr and the step would go green having scanned nothing. Fail loudly here instead.
+          for p in $SURFACE CONTRIBUTING.md SECURITY.md VERSIONING.md CHANGELOG.md; do
+            [ -e "$p" ] || { echo "::error::$p is scanned by this workflow but does not exist." \
+                                   "Re-point SURFACE (or the step that names it), do not delete the check."; exit 1; }
+          done
 
       - name: Plugin and marketplace manifests
         run: |
           CLI="npx -y @anthropic-ai/claude-code@latest"
-          if $CLI --version >/dev/null 2>&1; then $CLI plugin validate .
-          else echo "::notice::Claude Code CLI unavailable — manifest validation skipped."; fi
+          # This is the check that caught v2.0.0's uninstallable manifests. It used to print a
+          # notice and pass when the CLI could not be fetched — a green run that validated nothing.
+          # An unreachable CLI now fails the run; re-run the job rather than trusting a skip.
+          # Expected and deliberate: a warning that CLAUDE.md at the plugin root is not loaded as
+          # context. It is the clone-mode entrypoint, not plugin context — so no --strict here.
+          if ! $CLI --version >/dev/null 2>&1; then
+            echo "::error::Claude Code CLI could not be fetched — manifests were NOT validated."
+            exit 1
+          fi
+          $CLI plugin validate .
 
       - name: Version pins live only in runtime-tracks
         run: |
@@ -84,6 +106,13 @@ jobs:
           #     Python 3.12"). Those are that project's facts to maintain, not a pin we emit.
           #   this workflow — its own comments quote the very patterns it hunts for.
           SKIP='^\./(\.github/workflows/validate\.yml|knowledge/skills-registry\.md):'
+          # `|| true` below hides grep's exit 2 as well as its exit 1. A pattern that stops compiling
+          # after an edit would therefore scan nothing and pass. Prove each one compiles first:
+          # against empty input a valid pattern exits 1, an invalid one exits 2.
+          for RX in "$ADJ" "$GAP1" "$GAP2" "$COLON" "$CMP" "$CMPD" "$BARE"; do
+            rc=0; grep -iE "$RX" /dev/null || rc=$?
+            [ "$rc" -eq 1 ] || { echo "::error::A version-scan pattern does not compile: $RX"; exit 1; }
+          done
           NAMED=$(grep -rniIE "(${ADJ})|(${GAP1})|(${GAP2})|(${COLON})|(${CMP})|(${CMPD})" \
                     --exclude-dir=.git --exclude-dir=runtime-tracks . \
                   | grep -vE "$SKIP" || true)
@@ -280,6 +309,8 @@ jobs:
           DEAD="$DEAD"'|(^|[^A-Za-z0-9-])archetypes/|building-blocks/'
           DEAD="$DEAD"'|(^|[^A-Za-z0-9-])content-platform\.md'
           DEAD="$DEAD"'|\b(16|sixteen)[- ]sections?\b'
+          rc=0; grep -iE "$DEAD" /dev/null || rc=$?
+          [ "$rc" -eq 1 ] || { echo "::error::The DEAD pattern does not compile."; exit 1; }
           HITS=$(grep -rniIE "$DEAD" $SCOPE || true)
           if [ -n "$HITS" ]; then
             echo "$HITS"
@@ -299,7 +330,9 @@ jobs:
           # filenames survived: a broken templates/ or agents/ path is exactly as fatal as a broken
           # knowledge/ one. The sed drops .claude/... tokens first — those describe the GENERATED
           # project's workspace, which does not exist in this repo.
-          MISSING=$(find $SURFACE -type f -print0 \
+          # The three policy docs are scanned too: they are where contributors learn the paths.
+          # .github/ is NOT — new-shape.yml carries a deliberately hypothetical example path.
+          MISSING=$(find $SURFACE CONTRIBUTING.md SECURITY.md VERSIONING.md -type f -print0 \
                     | xargs -0 sed -E 's#\.claude/[^ )`"]*##g' \
                     | grep -oE '\b(knowledge|templates|questions|commands|agents|skills)/[A-Za-z0-9_./-]+\.md' \
                     | sort -u | while read -r f; do [ -f "$f" ] || echo "  $f"; done)
@@ -325,7 +358,10 @@ jobs:
           # -r on every grep: SURFACE mixes directories with files. Without it the directories are
           # skipped with a warning and the step passes for the wrong reason — green only because
           # today every image happens to live in README.md.
-          REFS=$(grep -rohE 'assets/[A-Za-z0-9_-]+\.(webp|png|jpg|jpeg|svg|gif)' $SURFACE | sort -u)
+          # `{ … || true; }`: zero image references is a legitimate state (it is today's), and grep
+          # exits 1 on it — which fails the step outright the day anyone sets `shell: bash`, because
+          # GitHub runs that with pipefail. Subfolders and dotted names are matched too.
+          REFS=$( { grep -rohE 'assets/[A-Za-z0-9_./-]+\.(webp|png|jpg|jpeg|svg|gif)' $SURFACE || true; } | sort -u)
           for f in $REFS; do
             [ -f "$f" ] || { echo "  dangling: $f"; FAIL=1; }
           done
@@ -352,3 +388,59 @@ jobs:
                  "image ships without alt text. Fix the path, delete the orphan, or write the alt."
             exit 1
           fi
+
+      - name: Version fields agree and the release is in the CHANGELOG
+        run: |
+          # VERSIONING.md: plugin.json, marketplace.json and the tag must agree, and every release
+          # moves its CHANGELOG entry out of [Unreleased]. Six releases shipped with neither the
+          # entry nor the link — the checklist alone did not hold, so it is enforced here.
+          P=$(jq -r .version .claude-plugin/plugin.json)
+          M=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
+          [ "$P" = "$M" ] || { echo "::error::plugin.json says $P, marketplace.json says $M."; exit 1; }
+          grep -qF "## [$P]" CHANGELOG.md \
+            || { echo "::error::CHANGELOG.md has no '## [$P]' heading for the manifest version."; exit 1; }
+          grep -qE "^\[$P\]: " CHANGELOG.md \
+            || { echo "::error::CHANGELOG.md has no '[$P]:' link at the bottom."; exit 1; }
+          echo "version $P: manifests agree, CHANGELOG entry and link present"
+
+      - name: Shape routing is reciprocal and every capability is reachable
+        run: |
+          # CONTRIBUTING.md's two graph rules, which until now only review enforced:
+          #   1. If shape A's "No if" points at shape B, B's "No if" points back at A. One-way edges
+          #      are how three shapes became nearly unreachable in v2's first audit.
+          #   2. Every capability is linked from at least one shape's "## Core capabilities" table.
+          #      An unlinked capability is dead knowledge — availability-engine sat orphaned that way.
+          python3 -I - <<'PY'
+          import pathlib, re, sys
+          shapes = sorted(p.stem for p in pathlib.Path("knowledge/shapes").glob("*.md"))
+          caps = sorted(p.stem for p in pathlib.Path("knowledge/capabilities").glob("*.md"))
+          edges, linked, bad = {}, set(), []
+          for s in shapes:
+              lines = pathlib.Path(f"knowledge/shapes/{s}.md").read_text().splitlines()
+              i = next((n for n, l in enumerate(lines) if "**No if" in l), None)
+              if i is None:
+                  bad.append(f"{s}: no '**No if' line"); edges[s] = set(); continue
+              block = []
+              for l in lines[i:]:
+                  if l.startswith("## ") or (block and l.startswith("**")): break
+                  block.append(l)
+              edges[s] = set(re.findall(r"knowledge/shapes/([a-z0-9-]+)\.md", "\n".join(block))) - {s}
+              j = next((n for n, l in enumerate(lines) if l.strip() == "## Core capabilities"), None)
+              if j is None:
+                  bad.append(f"{s}: no '## Core capabilities' section"); continue
+              for l in lines[j + 1:]:
+                  if l.startswith("#"): break
+                  if l.startswith("|"):
+                      linked |= set(re.findall(r"knowledge/capabilities/([a-z0-9-]+)\.md", l))
+          for a in shapes:
+              for b in sorted(edges[a]):
+                  if b not in edges: bad.append(f"{a} -> {b}: no such shape")
+                  elif a not in edges[b]: bad.append(f"{a} -> {b}: one-way (add {a} to {b}'s No if)")
+          bad += [f"capability {c}: in no shape's Core capabilities table" for c in caps if c not in linked]
+          print(f"shapes={len(shapes)} edges={sum(map(len, edges.values()))} capabilities={len(caps)}")
+          if bad:
+              print("\n".join("  " + b for b in bad))
+              print("::error::Shape routing or capability reachability is broken — see CONTRIBUTING.md,"
+                    " 'The classification reciprocity rule' and 'Contributing a capability'.")
+              sys.exit(1)
+          PY

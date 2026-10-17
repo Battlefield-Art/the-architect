@@ -136,8 +136,8 @@ body:
     id: version
     attributes:
       label: Plugin version
-      description: "`/plugin list`, or the `version` field in `.claude-plugin/plugin.json` if you cloned."
-      placeholder: "2.0.0"
+      description: "`claude plugin list`, or the `version` field in `.claude-plugin/plugin.json` if you cloned."
+      placeholder: "e.g. 2.6.0"
     validations:
       required: true
 

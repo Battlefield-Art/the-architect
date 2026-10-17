@@ -38,7 +38,8 @@ PRs consisting of generated output are closed without review.
 - [ ] **Skills registry** — an entry in `knowledge/skills-registry.md`
 - [ ] **Plugin surface** — `commands/`, `agents/`, `skills/`, `.claude-plugin/`
 - [ ] **Interview or templates** — `questions/`, `templates/`
-- [ ] **Docs** — `README.md`, `CLAUDE.md`, `.github/`
+- [ ] **Clone-mode entrypoint** — `CLAUDE.md` (runtime instructions, twin of `skills/architect/SKILL.md`)
+- [ ] **Docs** — `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `VERSIONING.md`, `.github/`
 - [ ] **Fix** — broken cross-reference, CI, typo
 
 ---
@@ -50,8 +51,8 @@ Each item is a rule CI or review will check anyway. The reasoning behind them is
 
 ### Always
 
-- [ ] **Version pins appear only in `knowledge/runtime-tracks/`.** No library version anywhere in
-      `knowledge/shapes/` or `knowledge/capabilities/` — link to the track instead. Standards
+- [ ] **Version pins appear only in `knowledge/runtime-tracks/`.** No library version anywhere else
+      in the repo — CI scans every file outside that directory. Link to the track instead. Standards
       (WCAG 2.2, Manifest V3, OAuth 2.1, HTTP status codes) are not version pins and are fine.
 - [ ] **`Last verified:` date updated** on every knowledge file I touched.
 - [ ] Every cross-reference I wrote points at a file that actually exists, at its exact path.
@@ -62,6 +63,7 @@ Each item is a rule CI or review will check anyway. The reasoning behind them is
       auto-activating skills (`ui-ux-pro-max`, `frontend-design`, `playwright-cli`, `find-skills`).
 - [ ] Knowledge files are in English, opinionated, table-first, and emoji-free.
 - [ ] CI is green (`.github/workflows/validate.yml`).
+- [ ] `CHANGELOG.md` has a line for this under `[Unreleased]`.
 
 ### If this adds or edits a shape
 
@@ -89,6 +91,10 @@ Each item is a rule CI or review will check anyway. The reasoning behind them is
       knowledge base or built-in `WebSearch`/`WebFetch` and keeps going.
 
 ---
+
+## SemVer category
+
+<!-- MAJOR, MINOR or PATCH per VERSIONING.md, and one line on why. Unsure? Say so. -->
 
 ## How I verified this
 

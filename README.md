@@ -93,9 +93,9 @@ Four phases. You talk, it designs, it generates.
 | **3. Architecture** | One dense message: stack table, how it fits together, what v1 includes and what it explicitly excludes, rough build phases. **Both gates run here.** | Confirm or adjust |
 | **4. Generate** | Picks bundle or single file from the step count and says which. Then: `blueprint-writer` composes, `blueprint-validator` audits until it returns PASS, files are written to `./blueprints/`. | Wait |
 
-### How long Phase 4 takes: 20–30 minutes, silently
+### How long Phase 4 takes: 25–35 minutes, silently
 
-This is the part nobody warns you about, so here it is up front. Once you confirm the architecture, generation runs **roughly 20–30 minutes for a bundle, 10–15 for a single file**, and produces no output until it is finished. That time is real work — a live registry call for every version pin, a full composition pass, and at least one validator round trip — but from your side it looks like nothing happening.
+This is the part nobody warns you about, so here it is up front. Once you confirm the architecture, generation runs **roughly 25–35 minutes for a bundle, 12–20 for a single file**, and produces no output until it is finished. That time is real work — a live registry call for every version pin, a full composition pass, and at least one validator round trip — but from your side it looks like nothing happening.
 
 The Architect is required to tell you the estimate before it starts. If it doesn't, that's a bug. Go make coffee; what comes back is a file path and the first command to run.
 
@@ -390,6 +390,8 @@ Contributions welcome — open an [issue or PR](https://github.com/Hainrixz/the-
 
 Two rules for any PR touching `knowledge/`: **no version number outside `runtime-tracks/`**, and **every build step gets an observable "Done when".**
 
+Before a PR, read [CONTRIBUTING.md](CONTRIBUTING.md). Releases are versioned per [VERSIONING.md](VERSIONING.md) and listed in [CHANGELOG.md](CHANGELOG.md). Found a prompt-injection or a hostile install command? Report it privately — see [SECURITY.md](SECURITY.md).
+
 ---
 
 ## License
@@ -473,9 +475,9 @@ Cuatro fases. Tú hablas, él diseña, él genera.
 | **3. Arquitectura** | Un solo mensaje denso: tabla de stack, cómo encaja todo, qué incluye v1 y qué excluye explícitamente, fases de construcción. **Aquí corren los dos gates.** | Confirmas o ajustas |
 | **4. Generar** | Elige bundle o archivo único según el número de pasos y te dice cuál. Luego: `blueprint-writer` compone, `blueprint-validator` audita hasta dar PASS, los archivos se escriben en `./blueprints/`. | Esperas |
 
-### Cuánto tarda la Fase 4: 20–30 minutos, en silencio
+### Cuánto tarda la Fase 4: 25–35 minutos, en silencio
 
-Esta es la parte que nadie te advierte, así que va por delante. Una vez que confirmas la arquitectura, la generación corre **unos 20–30 minutos para un bundle, 10–15 para un archivo único**, y no produce nada hasta terminar. Ese tiempo es trabajo real — una llamada en vivo al registry por cada versión, una pasada completa de composición, y al menos una vuelta del validador — pero desde tu lado se ve como si no pasara nada.
+Esta es la parte que nadie te advierte, así que va por delante. Una vez que confirmas la arquitectura, la generación corre **unos 25–35 minutos para un bundle, 12–20 para un archivo único**, y no produce nada hasta terminar. Ese tiempo es trabajo real — una llamada en vivo al registry por cada versión, una pasada completa de composición, y al menos una vuelta del validador — pero desde tu lado se ve como si no pasara nada.
 
 The Architect está obligado a darte el estimado antes de empezar. Si no lo hace, es un bug. Ve por un café; lo que regresa es una ruta de archivo y el primer comando que hay que correr.
 
@@ -769,6 +771,8 @@ Las contribuciones son bienvenidas — abre un [issue o PR](https://github.com/H
 - **Traducciones** — la entrevista corre en el idioma del usuario; más cobertura ayuda
 
 Dos reglas para cualquier PR que toque `knowledge/`: **ningún número de versión fuera de `runtime-tracks/`**, y **cada paso de construcción lleva un "Done when" observable.**
+
+Antes de un PR, lee [CONTRIBUTING.md](CONTRIBUTING.md). Las versiones siguen [VERSIONING.md](VERSIONING.md) y se listan en [CHANGELOG.md](CHANGELOG.md). ¿Encontraste un prompt injection o un comando de instalación hostil? Repórtalo en privado — ver [SECURITY.md](SECURITY.md).
 
 ---
 
