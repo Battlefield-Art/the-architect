@@ -113,6 +113,23 @@ jobs:
             rc=0; grep -iE "$RX" /dev/null || rc=$?
             [ "$rc" -eq 1 ] || { echo "::error::A version-scan pattern does not compile: $RX"; exit 1; }
           done
+          # Compiling is not enough: a stray `)` is a literal to both GNU and BSD grep, so a pattern
+          # can compile and still match nothing. Each pattern must catch its canary, and none may
+          # catch the known-clean shapes (a port, a standard, a time, a contrast ratio).
+          canary() { printf '%s\n' "$2" | grep -qiE "$1" \
+                       || { echo "::error::A version-scan pattern no longer matches its canary: $2"; exit 1; }; }
+          canary "$ADJ"   'Next.js 16.2'
+          canary "$GAP1"  'TypeScript to 6.9.2'
+          canary "$GAP2"  'pin Tailwind pinned at v4'
+          canary "$COLON" 'postgres:17.2-alpine'
+          canary "$CMP"   '"node": ">=24.18.0"'
+          canary "$CMPD"  'node > 24.1'
+          canary "$BARE"  'acme@9.9'
+          for CLEAN in 'postgres:5432' 'WCAG 2.2' 'at 02:00' 'contrast 4.5:1' 'React handles 3 surfaces'; do
+            if printf '%s\n' "$CLEAN" | grep -qiE "(${ADJ})|(${GAP1})|(${GAP2})|(${COLON})|(${CMP})|(${CMPD})|(${BARE})"; then
+              echo "::error::The version scan now flags a known-clean string: $CLEAN"; exit 1
+            fi
+          done
           NAMED=$(grep -rniIE "(${ADJ})|(${GAP1})|(${GAP2})|(${COLON})|(${CMP})|(${CMPD})" \
                     --exclude-dir=.git --exclude-dir=runtime-tracks . \
                   | grep -vE "$SKIP" || true)
@@ -378,6 +395,10 @@ jobs:
           # Markdown ![](…) with an empty alt, and any <img> tag carrying no alt= at all.
           NOALT=$(grep -rnE '!\[[[:space:]]*\]\(' $SURFACE || true)
           NOALT="$NOALT$(grep -rnE '<img[^>]*>' $SURFACE | grep -v 'alt=' || true)"
+          # An explicit empty alt is still no alt.
+          NOALT="$NOALT$(grep -rnE "<img[^>]*alt=(\"[[:space:]]*\"|'[[:space:]]*')" $SURFACE || true)"
+          # An <img that does not close on its own line cannot be judged by a line grep — keep it on one.
+          NOALT="$NOALT$(grep -rnE '<img[^>]*$' $SURFACE | sed 's/$/   <- keep <img> on one line/' || true)"
           if [ -n "$(echo "$NOALT" | tr -d '[:space:]')" ]; then
             echo "$NOALT" | sed 's/^/  no alt:  /'
             FAIL=1
@@ -397,9 +418,10 @@ jobs:
           P=$(jq -r .version .claude-plugin/plugin.json)
           M=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
           [ "$P" = "$M" ] || { echo "::error::plugin.json says $P, marketplace.json says $M."; exit 1; }
-          grep -qF "## [$P]" CHANGELOG.md \
+          PE=$(printf '%s' "$P" | sed 's/\./\\./g')   # 2.6.0 -> 2\.6\.0, so a dot is not a wildcard
+          grep -qE "^## \[$PE\]( |$)" CHANGELOG.md \
             || { echo "::error::CHANGELOG.md has no '## [$P]' heading for the manifest version."; exit 1; }
-          grep -qE "^\[$P\]: " CHANGELOG.md \
+          grep -qE "^\[$PE\]: " CHANGELOG.md \
             || { echo "::error::CHANGELOG.md has no '[$P]:' link at the bottom."; exit 1; }
           echo "version $P: manifests agree, CHANGELOG entry and link present"
 
