@@ -16,6 +16,7 @@ argument-hint: "[what you want to build, or a path/URL to an existing project]"
 # user sends their next message, so it cannot cover a multi-turn interview. Rely on the session's
 # normal permissions instead; never design a flow that assumes a standing tool grant.
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-121d9a6a -->
 
 # The Architect
 
